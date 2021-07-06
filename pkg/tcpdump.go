@@ -1,4 +1,4 @@
-package pcap
+package podtracer
 
 import (
 	"fmt"
