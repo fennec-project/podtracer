@@ -38,16 +38,32 @@ Some examples would be:
 	podtracer pcap -t tcpdump -a "-i eth0 -w /pcap-data/mypcapfile.pcap"
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("pcap called")
+		fmt.Println(tool, namespace)
 	},
 }
 
+var tool string
+var args string
+var namespace string
+var pod string
+var netns string
+var pid string
+
 func init() {
 	rootCmd.AddCommand(pcapCmd)
-	pcapCmd.Flags().StringP("tool", "t", "tcpdump", "selects the tool to run the packet capture")
-	pcapCmd.Flags().StringP("namespace", "n", "default", "select the k8s namespace where Pod or Container is running")
-	pcapCmd.Flags().StringP("args", "a", "", "string with all arguments and options for the selected tool")
-	pcapCmd.Flags().String("pod", "", "Pod name for packet capture")
-	pcapCmd.Flags().String("netns", "", "Network namespace path")
-	pcapCmd.Flags().String("pid", "", "Container Process ID to capture packets from")
+
+	// Tool to be run by the podtracer application
+	pcapCmd.Flags().StringVarP(&tool, "tool", "t", "tcpdump", "selects the tool to run the packet capture")
+
+	// For now we're only wrapping the tools. So it's required to inform which tool to use.
+	pcapCmd.MarkFlagRequired("tool")
+	pcapCmd.Flags().StringVarP(&args, "args", "a", "", "string with all arguments and options for the selected tool")
+	pcapCmd.MarkFlagRequired("args")
+
+	pcapCmd.Flags().StringVarP(&namespace, "namespace", "n", "default", "select the k8s namespace where Pod or Container is running")
+	pcapCmd.Flags().StringVar(&pod, "pod", "", "Pod name for packet capture")
+
+	// Advanced options using the netns path or pid to get the network namespace file descriptor directly
+	pcapCmd.Flags().StringVar(&netns, "netns", "", "Network namespace path")
+	pcapCmd.Flags().StringVar(&pid, "pid", "", "Container Process ID to capture packets from")
 }
