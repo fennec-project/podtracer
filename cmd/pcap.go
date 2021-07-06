@@ -16,8 +16,6 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
@@ -38,7 +36,7 @@ Some examples would be:
 	podtracer pcap -t tcpdump -a "-i eth0 -w /pcap-data/mypcapfile.pcap"
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(tool, namespace)
+
 	},
 }
 
