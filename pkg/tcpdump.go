@@ -9,10 +9,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/vishvananda/netlink"
 )
 
-func runTcpdump(targetPod corev1.Pod, ifName string, duration int, pcapFile string) error {
+func runTcpdump(targetPod corev1.Pod, tcpdumpArgs string) error {
 
 	pid, err := getPid(targetPod)
 	if err != nil {
@@ -27,13 +26,13 @@ func runTcpdump(targetPod corev1.Pod, ifName string, duration int, pcapFile stri
 
 	err = targetNS.Do(func(hostNs ns.NetNS) error {
 
-		_, err := netlink.LinkByName(ifName)
-		if err != nil {
-			return fmt.Errorf("interface could not be found: %v", err)
-		}
+		// _, err := netlink.LinkByName(ifName)
+		// if err != nil {
+		// 	return fmt.Errorf("interface could not be found: %v", err)
+		// }
 
 		// Running tcpdump on given Pod and Interface
-		cmd := exec.Command("tcpdump", "-i", ifName, "-w", pcapFile)
+		cmd := exec.Command("tcpdump", tcpdumpArgs)
 
 		err = cmd.Start()
 		if err != nil {
@@ -41,16 +40,16 @@ func runTcpdump(targetPod corev1.Pod, ifName string, duration int, pcapFile stri
 			return err
 		}
 
-		fmt.Printf("Starting tcpdump on interface %s at %v\n", ifName, time.Now())
+		fmt.Printf("Starting tcpdump on pod %s at %v\n", targetPod.ObjectMeta.Name, time.Now())
 
-		time.Sleep(time.Duration(duration) * time.Minute)
+		// time.Sleep(time.Duration(duration) * time.Minute)
 
-		if err := cmd.Process.Kill(); err != nil {
-			fmt.Println(err)
-			return err
-		}
+		// if err := cmd.Process.Kill(); err != nil {
+		// 	fmt.Println(err)
+		// 	return err
+		// }
 
-		fmt.Printf("Stopping tcpdump on interface %s at %v\n", ifName, time.Now())
+		// fmt.Printf("Stopping tcpdump on interface %s at %v\n", ifName, time.Now())
 
 		return nil
 	})
