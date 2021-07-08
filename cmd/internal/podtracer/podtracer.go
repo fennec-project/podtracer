@@ -11,7 +11,7 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 )
 
-func runTcpdump(targetPod corev1.Pod, tcpdumpArgs string) error {
+func Run(tool string, targetPod corev1.Pod, targetArgs string) error {
 
 	pid, err := getPid(targetPod)
 	if err != nil {
@@ -32,7 +32,7 @@ func runTcpdump(targetPod corev1.Pod, tcpdumpArgs string) error {
 		// }
 
 		// Running tcpdump on given Pod and Interface
-		cmd := exec.Command("tcpdump", tcpdumpArgs)
+		cmd := exec.Command(tool, targetArgs)
 
 		err = cmd.Start()
 		if err != nil {
