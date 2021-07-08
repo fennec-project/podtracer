@@ -3,28 +3,36 @@ package podtracer
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"os/exec"
 
+	"os"
+
 	"github.com/containernetworking/plugins/pkg/ns"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
-
-var c client.Client
 
 func Run(tool string, targetArgs string, targetPod string, targetNamespace string) error {
 
 	// TODO: setup client and get the pod itself here
 
-	pod := &corev1.Pod{}
+	c, err := client.New(config.GetConfigOrDie(), client.Options{})
+	if err != nil {
+		fmt.Println("failed to create client")
+		os.Exit(1)
+	}
+
+	pod := corev1.Pod{}
 	_ = c.Get(context.Background(), client.ObjectKey{
 		Namespace: targetNamespace,
 		Name:      targetPod,
-	}, pod)
+	}, &pod)
 
-	pid, err := getPid(*pod)
+	pid, err := getPid(pod)
 	if err != nil {
 		return err
 	}
@@ -52,6 +60,9 @@ func Run(tool string, targetArgs string, targetPod string, targetNamespace strin
 		}
 
 		fmt.Printf("Starting tcpdump on pod %s at %v\n", pod.ObjectMeta.Name, time.Now())
+		// TODO: get the stderr here - tcpdump is throwing exit status 1 but os.exec is throwing 0 how?
+		err = cmd.Wait()
+		log.Printf("Command %v finished with exit code: %v", tool+" "+targetArgs, err)
 
 		// time.Sleep(time.Duration(duration) * time.Minute)
 
