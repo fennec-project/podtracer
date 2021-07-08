@@ -1,19 +1,30 @@
 package podtracer
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"os/exec"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/containernetworking/plugins/pkg/ns"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func Run(tool string, targetPod corev1.Pod, targetArgs string) error {
+var c client.Client
 
-	pid, err := getPid(targetPod)
+func Run(tool string, targetArgs string, targetPod string, targetNamespace string) error {
+
+	// TODO: setup client and get the pod itself here
+
+	pod := &corev1.Pod{}
+	_ = c.Get(context.Background(), client.ObjectKey{
+		Namespace: targetNamespace,
+		Name:      targetPod,
+	}, pod)
+
+	pid, err := getPid(*pod)
 	if err != nil {
 		return err
 	}
@@ -40,7 +51,7 @@ func Run(tool string, targetPod corev1.Pod, targetArgs string) error {
 			return err
 		}
 
-		fmt.Printf("Starting tcpdump on pod %s at %v\n", targetPod.ObjectMeta.Name, time.Now())
+		fmt.Printf("Starting tcpdump on pod %s at %v\n", pod.ObjectMeta.Name, time.Now())
 
 		// time.Sleep(time.Duration(duration) * time.Minute)
 
