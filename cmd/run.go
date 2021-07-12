@@ -42,6 +42,7 @@ var runCmd = &cobra.Command{
 	},
 }
 
+// vars for flags
 var targetArgs string
 var targetPod string
 var targetNamespace string

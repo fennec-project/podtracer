@@ -1,10 +1,10 @@
 package podtracer
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"log"
-	"time"
+	"strings"
 
 	"os/exec"
 
@@ -73,19 +73,21 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 
 	err = targetNS.Do(func(hostNs ns.NetNS) error {
 
-		// Running tcpdump on given Pod and Interface
-		cmd := exec.Command(tool, targetArgs)
+		splitArgs := strings.Split(targetArgs, " ")
 
-		err = cmd.Start()
+		// Running tcpdump on given Pod and Interface
+		cmd := exec.Command(tool, splitArgs...)
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err = cmd.Run()
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(err.Error())
 			return err
 		}
 
-		fmt.Printf("Starting tcpdump on pod %s at %v\n", pod.ObjectMeta.Name, time.Now())
-		// TODO: get the stderr here - tcpdump is throwing exit status 1 but os.exec is throwing 0 how?
-		err = cmd.Wait()
-		log.Printf("Command %v finished with exit code: %v", tool+" "+targetArgs, err)
+		fmt.Printf("Stdout: %v\n Stderr: %v\n Exit Code: %v", stdout.String(), stderr.String(), err)
 
 		return nil
 	})
