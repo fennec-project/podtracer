@@ -16,14 +16,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-func Run(tool string, targetArgs string, targetPod string, targetNamespace string) error {
+type Podtracer struct {
+	Tool       string
+	TargetArgs string
+	Pod        string
+	Namespace  string
+	Kubeconfig string
+}
 
-	// TODO: setup client and get the pod itself here
+func (podtracer Podtracer) GetClient(kubeconfigPath string) (client.Client, error) {
 
 	c, err := client.New(config.GetConfigOrDie(), client.Options{})
 	if err != nil {
 		fmt.Println("failed to create client")
 		os.Exit(1)
+	}
+	return c, nil
+}
+
+func (podtracer Podtracer) GetPod(targetPod string, targetNamespace string, kubeconfig string) (corev1.Pod, error) {
+
+	c, err := podtracer.GetClient(kubeconfig)
+	if err != nil {
+		return corev1.Pod{}, err
 	}
 
 	pod := corev1.Pod{}
@@ -31,24 +46,32 @@ func Run(tool string, targetArgs string, targetPod string, targetNamespace strin
 		Namespace: targetNamespace,
 		Name:      targetPod,
 	}, &pod)
+	return pod, nil
+
+}
+
+func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string, targetNamespace string, kubeconfig string) error {
+
+	pod, err := podtracer.GetPod(targetPod, targetNamespace, kubeconfig)
+	if err != nil {
+		return err
+	}
+
+	// TODO: create a podInspect struct to handle pod and container data
+	// and add it as a receiver on the getPid function.
 
 	pid, err := getPid(pod)
 	if err != nil {
 		return err
 	}
 
-	// Get the pods namespace object
+	// Get the pod's Linux namespace object
 	targetNS, err := ns.GetNS("/host/proc/" + pid + "/ns/net")
 	if err != nil {
 		return fmt.Errorf("error getting Pod network namespace: %v", err)
 	}
 
 	err = targetNS.Do(func(hostNs ns.NetNS) error {
-
-		// _, err := netlink.LinkByName(ifName)
-		// if err != nil {
-		// 	return fmt.Errorf("interface could not be found: %v", err)
-		// }
 
 		// Running tcpdump on given Pod and Interface
 		cmd := exec.Command(tool, targetArgs)
@@ -63,15 +86,6 @@ func Run(tool string, targetArgs string, targetPod string, targetNamespace strin
 		// TODO: get the stderr here - tcpdump is throwing exit status 1 but os.exec is throwing 0 how?
 		err = cmd.Wait()
 		log.Printf("Command %v finished with exit code: %v", tool+" "+targetArgs, err)
-
-		// time.Sleep(time.Duration(duration) * time.Minute)
-
-		// if err := cmd.Process.Kill(); err != nil {
-		// 	fmt.Println(err)
-		// 	return err
-		// }
-
-		// fmt.Printf("Stopping tcpdump on interface %s at %v\n", ifName, time.Now())
 
 		return nil
 	})

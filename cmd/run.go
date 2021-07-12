@@ -16,6 +16,8 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/fennec-project/podtracer/cmd/internal/podtracer"
 	"github.com/spf13/cobra"
 )
@@ -30,7 +32,12 @@ var runCmd = &cobra.Command{
 	Args:      argFuncs(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
 	Run: func(cmd *cobra.Command, args []string) {
 
-		podtracer.Run(args[0], targetArgs, targetPod, targetNamespace)
+		// calling main podtracer command
+		p := podtracer.Podtracer{}
+		err := p.Run(args[0], targetArgs, targetPod, targetNamespace, kubeconfig)
+		if err != nil {
+			fmt.Printf("An error ocurred while running pod tracer run: %v", err)
+		}
 
 	},
 }
@@ -38,6 +45,7 @@ var runCmd = &cobra.Command{
 var targetArgs string
 var targetPod string
 var targetNamespace string
+var kubeconfig string
 
 func init() {
 	rootCmd.AddCommand(runCmd)
@@ -47,6 +55,7 @@ func init() {
 	runCmd.Flags().StringVarP(&targetNamespace, "namespace", "n", "", "Kubernetes namespace where the target pod is running")
 	runCmd.MarkFlagRequired("pod")
 	runCmd.MarkFlagRequired("namespace")
+	runCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubeconfig file path to connect to kubernetes cluster - defaults to $HOME/.kube/kubeconfig")
 }
 
 func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
