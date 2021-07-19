@@ -4,3 +4,4 @@ RUN yum install -y tcpdump
 
 COPY podtracer /usr/bin/podtracer
 
+USER root
