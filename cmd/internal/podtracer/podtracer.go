@@ -26,6 +26,7 @@ type Podtracer struct {
 
 func (podtracer Podtracer) GetClient(kubeconfigPath string) (client.Client, error) {
 
+	// TODO: link kubeconfigPath on client.new if empty default to ~/.kube/kubeconfig
 	c, err := client.New(config.GetConfigOrDie(), client.Options{})
 	if err != nil {
 		fmt.Println("failed to create client")
