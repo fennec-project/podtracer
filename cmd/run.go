@@ -36,7 +36,7 @@ var runCmd = &cobra.Command{
 		p := podtracer.Podtracer{}
 		err := p.Run(args[0], targetArgs, targetPod, targetNamespace, kubeconfig)
 		if err != nil {
-			fmt.Printf("An error ocurred while running pod tracer run: %v", err)
+			fmt.Printf("An error ocurred while running pod tracer run: %v", err.Error())
 		}
 
 	},

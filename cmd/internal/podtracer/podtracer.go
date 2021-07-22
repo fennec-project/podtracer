@@ -39,6 +39,7 @@ func (podtracer Podtracer) GetPod(targetPod string, targetNamespace string, kube
 
 	c, err := podtracer.GetClient(kubeconfig)
 	if err != nil {
+		fmt.Println(err.Error())
 		return corev1.Pod{}, err
 	}
 
@@ -55,6 +56,7 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 
 	pod, err := podtracer.GetPod(targetPod, targetNamespace, kubeconfig)
 	if err != nil {
+		fmt.Println(err.Error())
 		return err
 	}
 
@@ -63,6 +65,7 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 
 	pid, err := getPid(pod)
 	if err != nil {
+		fmt.Println(err.Error())
 		return err
 	}
 
@@ -84,7 +87,7 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 		cmd.Stderr = &stderr
 		err = cmd.Run()
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Printf("Error: %s\n %v", err.Error(), cmd.Stderr)
 			return err
 		}
 
@@ -93,6 +96,7 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 		return nil
 	})
 	if err != nil {
+		fmt.Println(err.Error())
 		return err
 	}
 
