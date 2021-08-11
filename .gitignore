@@ -16,4 +16,4 @@
 
 build/podtracer
 
-kubeconfig
+config
