@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podtracer
+  namespace: podtracer
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: cnf-example-pod
+      namespace: podtracer
+    spec:
+      serviceAccountName: podtracer-sa
+      containers:
+      - command:
+        - /bin/bash 
+        - -c 
+        - --
+        args:
+        - "while true; do sleep 30; done;"
+        image: "quay.io/fennec-project/podtracer:0.0.1"
+        imagePullPolicy: Always
+        name: podtracer
