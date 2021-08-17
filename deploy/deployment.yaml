@@ -3,12 +3,19 @@ kind: Deployment
 metadata:
   name: podtracer
   namespace: podtracer
+  labels:
+    control-plane: podtracer
 spec:
+  selector:
+    matchLabels:
+      control-plane: podtracer      
   replicas: 1
   template:
     metadata:
       name: cnf-example-pod
       namespace: podtracer
+      labels:
+        control-plane: podtracer      
     spec:
       serviceAccountName: podtracer-sa
       containers:
@@ -21,10 +28,12 @@ spec:
         image: "quay.io/fennec-project/podtracer:0.0.1"
         imagePullPolicy: Always
         name: podtracer
-  VolumeMounts:
-    - name: kubeconfig
-    mountPath: /root/.kube/config
-  Volumes:
-    - name: kubeconfig
-      secret:
-        secretName: podtracer-kubeconfig    
+        volumeMounts:
+          - name: kubeconfig
+            mountPath: /root/.kube/
+        securityContext:
+          privileged: true
+      volumes:
+      - name: kubeconfig
+        secret:
+          secretName: podtracer-kubeconfig    
