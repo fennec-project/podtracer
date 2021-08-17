@@ -21,3 +21,10 @@ spec:
         image: "quay.io/fennec-project/podtracer:0.0.1"
         imagePullPolicy: Always
         name: podtracer
+  VolumeMounts:
+    - name: kubeconfig
+    mountPath: /root/.kube/config
+  Volumes:
+    - name: kubeconfig
+      secret:
+        secretName: podtracer-kubeconfig    
