@@ -20,7 +20,8 @@ spec:
       mountPath: /root/go/src/github.com/project/podtracer/
     - name: pcap-data
       mountPath: /pcap-data/
-
+    - name: kubeconfig
+      mountPath: /root/.kube/config
   Volumes:
     - name: proc
       hostPath:
@@ -36,6 +37,10 @@ spec:
       emptyDir: {}
     - name: pcap-data
       emptyDir: {}
+    - name: kubeconfig
+      secret:
+        secretName: podtracer-kubeconfig
+      
   
   serviceAccount: "podtracer-dev-sa"
   goRemoteNamespace: "podtracer-dev"
