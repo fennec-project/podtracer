@@ -7,9 +7,8 @@ metadata:
   name: podtracer-role
 rules:
 - apiGroups:
-  - ''
+  - '*'
   resources:
-  - 'Pods'
+  - '*'
   verbs:
-  - get
-  - list
+  - '*'

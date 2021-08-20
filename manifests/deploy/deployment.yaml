@@ -29,11 +29,31 @@ spec:
         imagePullPolicy: Always
         name: podtracer
         volumeMounts:
-          - name: kubeconfig
-            mountPath: /root/.kube/
+        - mountPath: /host/proc
+          name: proc
+        - mountPath: /var/run/crio/crio.sock
+          name: crio-sock
+        - name: pcap-data
+          mountPath: /pcap-data/
+        - name: kubeconfig
+          mountPath: /root/.kube/        
         securityContext:
           privileged: true
+      nodeSelector:
+        cnf-telco: "true"                   
       volumes:
+      - name: proc
+        hostPath:
+          # Mounting the proc file system to get process namespaces
+          path: /proc
+          type: Directory
+      - name: crio-sock
+        hostPath:
+          # Mounting the crio socket to inspect containers
+          path: /var/run/crio/crio.sock
+          type: Socket
+      - name: pcap-data
+        emptyDir: {}      
       - name: kubeconfig
         secret:
           secretName: podtracer-kubeconfig    

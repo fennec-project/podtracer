@@ -27,10 +27,10 @@ container-push:
 podtracer-deploy:
 	kubectl create ns ${NS}
 	kubectl create secret generic podtracer-kubeconfig --type=string --from-file=${PODTRACER_KUBECONFIG} -n ${NS}
-	kubectl apply -f deploy/ -n ${NS}
+	kubectl apply -f manifests/deploy/ -n ${NS}
 
 delete-podtracer:
-	kubectl delete -f deploy/ -n ${NS}
+	kubectl delete -f manifests/deploy/ -n ${NS}
 	kubectl delete secret podtracer-kubeconfig -n ${NS}
 	kubectl delete ns ${NS}
 
@@ -42,10 +42,13 @@ delete-podtracer:
 dev-env:
 	kubectl create ns ${DEV_NS}
 	kubectl create secret generic podtracer-kubeconfig --type=string --from-file=${DEV_KUBECONFIG_PATH} -n ${DEV_NS}
-	kubectl apply -f dev/ -n ${DEV_NS}
+	kubectl apply -f manifests/dev/ -n ${DEV_NS}
 
 
 delete-dev-env:
-	kubectl delete -f dev/ -n ${DEV_NS}
+	kubectl delete -f manifests/dev/ -n ${DEV_NS}
 	kubectl delete secret podtracer-kubeconfig -n ${DEV_NS}	
 	kubectl delete ns ${DEV_NS}
+
+sample-deployment:
+	kubectl apply -f manifests/sample_deployment/
