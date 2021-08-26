@@ -7,7 +7,7 @@ NS ?= podtracer
 DEV_KUBECONFIG_PATH ?= $$HOME/.kube/config
 DEV_NS ?= podtracer-dev
 BUILDER ?= podman
-IMG ?= quay.io/fennec-project/podtracer:0.0.1
+IMG ?= quay.io/fennec-project/podtracer:0.0.1-2
 
 # podtracer-build builds podtracer binary
 podtracer-build:
