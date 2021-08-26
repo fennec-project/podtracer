@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
@@ -83,26 +84,30 @@ func parseCRIOContainerInfo(statusResponse *cri.ContainerStatusResponse) map[str
 func getPid(pod corev1.Pod) (string, error) {
 
 	// Get the container IDs for the given pod
+	fmt.Printf("%v [DEBUG]getting container id for pod %s \n\n", time.Now(), pod.ObjectMeta.Name)
 	containerIDs := getContainerIDs(pod)
 
+	fmt.Printf("container ID for pod %s is %s \n\n", pod.ObjectMeta.Name, containerIDs[0])
 	// Connect with CRI-O's grpc endpoint
 	conn, err := getCRIOConnection()
 	if err != nil {
-		return "", fmt.Errorf("Error getting CRIO connection: %v", err)
+		return "", fmt.Errorf("error getting CRIO connection: %v", err)
 	}
-
+	fmt.Println("Got grpc client for CRIO")
 	// Make a container status request to CRI-O
 	// Here it doesn't matter which container ID inside the pod.
 	// The goal is to put runtime configurations on Pod shared namespaces
 	// like network and mount. Not intended for process/container specific namespaces.
-
+	fmt.Printf("%v [DEBUG] Requesting container status for pod %s \n\n", time.Now(), pod.ObjectMeta.Name)
 	containerStatusResponse, err := getCRIOContainerStatus(containerIDs[0], conn)
 	if err != nil {
-		return "", fmt.Errorf("Error getting CRIO container status: %v", err)
+		return "", fmt.Errorf("error getting CRIO container status: %v", err)
 	}
 
 	parsedContainerInfo := parseCRIOContainerInfo(containerStatusResponse)
+	fmt.Printf("%v [DEBUG] container status for pod %s is %v \n\n", time.Now(), pod.ObjectMeta.Name, parsedContainerInfo)
 
+	fmt.Printf("%v [DEBUG] Process ID for container is %v \n\n", time.Now(), parsedContainerInfo["pid"])
 	return fmt.Sprintf("%.0f", parsedContainerInfo["pid"]), nil
 
 }
