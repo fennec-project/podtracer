@@ -39,15 +39,17 @@ func (podtracer Podtracer) GetPod(targetPod string, targetNamespace string, kube
 
 	c, err := podtracer.GetClient(kubeconfig)
 	if err != nil {
-		fmt.Println(err.Error())
 		return corev1.Pod{}, err
 	}
 
 	pod := corev1.Pod{}
-	_ = c.Get(context.Background(), client.ObjectKey{
+	err = c.Get(context.Background(), client.ObjectKey{
 		Namespace: targetNamespace,
 		Name:      targetPod,
 	}, &pod)
+	if err != nil {
+		return corev1.Pod{}, err
+	}
 	return pod, nil
 
 }

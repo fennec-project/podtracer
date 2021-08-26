@@ -25,7 +25,7 @@ spec:
         - --
         args:
         - "while true; do sleep 30; done;"
-        image: "quay.io/fennec-project/podtracer:0.0.1"
+        image: "quay.io/fennec-project/podtracer:0.0.1-3"
         imagePullPolicy: Always
         name: podtracer
         volumeMounts:
@@ -34,9 +34,7 @@ spec:
         - mountPath: /var/run/crio/crio.sock
           name: crio-sock
         - name: pcap-data
-          mountPath: /pcap-data/
-        - name: kubeconfig
-          mountPath: /root/.kube/        
+          mountPath: /pcap-data/    
         securityContext:
           privileged: true
       nodeSelector:
@@ -54,6 +52,3 @@ spec:
           type: Socket
       - name: pcap-data
         emptyDir: {}      
-      - name: kubeconfig
-        secret:
-          secretName: podtracer-kubeconfig    

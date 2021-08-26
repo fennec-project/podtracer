@@ -84,7 +84,7 @@ func parseCRIOContainerInfo(statusResponse *cri.ContainerStatusResponse) map[str
 func getPid(pod corev1.Pod) (string, error) {
 
 	// Get the container IDs for the given pod
-	fmt.Printf("%v [DEBUG]getting container id for pod %s \n\n", time.Now(), pod.ObjectMeta.Name)
+	fmt.Printf("%v [DEBUG] getting container id for pod %s \n\n", time.Now(), pod.ObjectMeta.Name)
 	containerIDs := getContainerIDs(pod)
 
 	fmt.Printf("container ID for pod %s is %s \n\n", pod.ObjectMeta.Name, containerIDs[0])
