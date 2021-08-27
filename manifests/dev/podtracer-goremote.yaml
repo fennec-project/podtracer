@@ -18,10 +18,6 @@ spec:
       name: crio-sock
     - name: gitrepo
       mountPath: /root/go/src/github.com/project/podtracer/
-    - name: pcap-data
-      mountPath: /pcap-data/
-    - name: kubeconfig
-      mountPath: /root/.kube/
   Volumes:
     - name: proc
       hostPath:
@@ -35,12 +31,5 @@ spec:
         type: Socket
     - name: gitrepo 
       emptyDir: {}
-    - name: pcap-data
-      emptyDir: {}
-    - name: kubeconfig
-      secret:
-        secretName: podtracer-kubeconfig
-      
-  
   serviceAccount: "podtracer-dev-sa"
   goRemoteNamespace: "podtracer-dev"
