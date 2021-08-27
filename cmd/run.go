@@ -28,8 +28,8 @@ var runCmd = &cobra.Command{
 	Short: "Runs the chosen tool on a target pod.",
 	Long: `The run command allows running tools such as tcpdump, tshark, iperf and others
 	to acquire network data and metrics for observability purposes without changing the pod.`,
-	ValidArgs: []string{"tcpdump"},
-	Args:      argFuncs(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
+	// ValidArgs: []string{"tcpdump"},
+	Args: argFuncs(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// calling main podtracer command

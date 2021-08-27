@@ -1,6 +1,4 @@
-FROM centos:8
-
-RUN yum install -y tcpdump
+FROM nicolaka/netshoot
 
 COPY podtracer /usr/bin/podtracer
 

@@ -96,7 +96,7 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 
 		splitArgs := strings.Split(targetArgs, " ")
 
-		logger.Printf("[INFO] Running tcpdump: Pod %s Namespace %s \n\n", targetPod, targetNamespace)
+		logger.Printf("[INFO] Running %s: Pod %s Namespace %s \n\n", tool, targetPod, targetNamespace)
 		cmd := exec.Command(tool, splitArgs...)
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
