@@ -10,6 +10,8 @@ import (
 
 	"os"
 
+	logger "log"
+
 	"github.com/containernetworking/plugins/pkg/ns"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,6 +24,19 @@ type Podtracer struct {
 	Pod        string
 	Namespace  string
 	Kubeconfig string
+}
+
+func Log(msgLogLevel string, msg string, args ...interface{}) {
+	systemLogLevel := os.Getenv("PODTRACER_LOGLEVEL")
+	if systemLogLevel == "DEBUG" {
+		logger.Printf("["+msgLogLevel+"] "+msg, args)
+		return
+	} else if msgLogLevel != "DEBUG" {
+		logger.Printf("["+msgLogLevel+"] "+msg, args)
+		return
+	} else {
+		return
+	}
 }
 
 func (podtracer Podtracer) GetClient(kubeconfigPath string) (client.Client, error) {
@@ -39,15 +54,17 @@ func (podtracer Podtracer) GetPod(targetPod string, targetNamespace string, kube
 
 	c, err := podtracer.GetClient(kubeconfig)
 	if err != nil {
-		fmt.Println(err.Error())
 		return corev1.Pod{}, err
 	}
 
 	pod := corev1.Pod{}
-	_ = c.Get(context.Background(), client.ObjectKey{
+	err = c.Get(context.Background(), client.ObjectKey{
 		Namespace: targetNamespace,
 		Name:      targetPod,
 	}, &pod)
+	if err != nil {
+		return corev1.Pod{}, err
+	}
 	return pod, nil
 
 }
@@ -79,7 +96,7 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 
 		splitArgs := strings.Split(targetArgs, " ")
 
-		// Running tcpdump on given Pod and Interface
+		logger.Printf("[INFO] Running %s: Pod %s Namespace %s \n\n", tool, targetPod, targetNamespace)
 		cmd := exec.Command(tool, splitArgs...)
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
@@ -91,7 +108,8 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 			return err
 		}
 
-		fmt.Printf("Stdout: %v\n Stderr: %v\n Exit Code: %v", stdout.String(), stderr.String(), err)
+		Log("DATA", "Stdout: %v \n\n", stdout.String())
+		Log("DEBUG", "Stderr: %v\n Exit Code: %v", stderr.String(), err)
 
 		return nil
 	})

@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podtracer
+  namespace: podtracer
+  labels:
+    control-plane: podtracer
+spec:
+  selector:
+    matchLabels:
+      control-plane: podtracer      
+  replicas: 1
+  template:
+    metadata:
+      name: cnf-example-pod
+      namespace: podtracer
+      labels:
+        control-plane: podtracer      
+    spec:
+      serviceAccountName: podtracer-sa
+      containers:
+      - command:
+        - /bin/bash 
+        - -c 
+        - --
+        args:
+        - "while true; do sleep 30; done;"
+        image: "quay.io/fennec-project/podtracer:0.0.1-4"
+        imagePullPolicy: Always
+        name: podtracer
+        volumeMounts:
+        - mountPath: /host/proc
+          name: proc
+        - mountPath: /var/run/crio/crio.sock
+          name: crio-sock
+        - name: pcap-data
+          mountPath: /pcap-data/    
+        securityContext:
+          privileged: true
+      nodeSelector:
+        cnf-telco: "true"                   
+      volumes:
+      - name: proc
+        hostPath:
+          # Mounting the proc file system to get process namespaces
+          path: /proc
+          type: Directory
+      - name: crio-sock
+        hostPath:
+          # Mounting the crio socket to inspect containers
+          path: /var/run/crio/crio.sock
+          type: Socket
+      - name: pcap-data
+        emptyDir: {}      
