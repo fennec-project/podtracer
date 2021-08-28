@@ -44,3 +44,6 @@ delete-dev-env:
 
 sample-deployment:
 	kubectl apply -f manifests/sample_deployment/
+
+delete-samples:
+	kubectl delete -f manifests/sample_deployment/

@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"os/exec"
 
-	"os"
-
 	logger "log"
+	"os"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	corev1 "k8s.io/api/core/v1"
@@ -69,7 +69,7 @@ func (podtracer Podtracer) GetPod(targetPod string, targetNamespace string, kube
 
 }
 
-func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string, targetNamespace string, kubeconfig string) error {
+func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string, targetNamespace string, kubeconfig string, file string) error {
 
 	pod, err := podtracer.GetPod(targetPod, targetNamespace, kubeconfig)
 	if err != nil {
@@ -97,19 +97,41 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 		splitArgs := strings.Split(targetArgs, " ")
 
 		logger.Printf("[INFO] Running %s: Pod %s Namespace %s \n\n", tool, targetPod, targetNamespace)
+
+		writers := []io.Writer{}
+		if file != "" {
+
+			stdoutFile, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0755)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := stdoutFile.Close(); err != nil {
+					logger.Printf("Couldn't close file stdout.txt")
+					return
+				}
+			}()
+
+			writers = append(writers, stdoutFile)
+		}
+
+		bufferedStderr := bytes.NewBuffer([]byte{})
+
+		writeToBufferAndStdout := io.MultiWriter(os.Stdout, writers...)
+		writeToBufferAndStderr := io.MultiWriter(os.Stderr, bufferedStderr)
+
 		cmd := exec.Command(tool, splitArgs...)
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
+		cmd.Stdout = writeToBufferAndStdout
+		cmd.Stderr = writeToBufferAndStderr
+
 		err = cmd.Run()
 		if err != nil {
 			fmt.Printf("Error: %s\n %v", err.Error(), cmd.Stderr)
 			return err
 		}
 
-		Log("DATA", "Stdout: %v \n\n", stdout.String())
-		Log("DEBUG", "Stderr: %v\n Exit Code: %v", stderr.String(), err)
+		// Log("DATA", "Stdout: %v \n\n", bufferedStdout.String())
+		// Log("DEBUG", "Stderr: %v\n Exit Code: %v", bufferedStderr.String(), err)
 
 		return nil
 	})
