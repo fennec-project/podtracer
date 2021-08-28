@@ -13,6 +13,8 @@ func testPodtracer(t *testing.T) {
 		pod              string
 		namespace        string
 		kubeconfig       string
+		stdoutFile       string
+		stderrFile       string
 		expectedErrorMsg string
 	}{
 		// TODO: create the testing scenarios below
@@ -70,7 +72,7 @@ func testPodtracer(t *testing.T) {
 				return // Expected error message ok. Done.
 			}
 
-			err = p.Run(scenario.tool, scenario.targetArgs, scenario.pod, scenario.namespace, scenario.kubeconfig)
+			err = p.Run(scenario.tool, scenario.targetArgs, scenario.pod, scenario.namespace, scenario.kubeconfig, scenario.stdoutFile, scenario.stderrFile)
 
 			if want, got := scenario.name, err.Error(); want != got {
 				t.Errorf("Expected error %v, but got %v.", want, got)

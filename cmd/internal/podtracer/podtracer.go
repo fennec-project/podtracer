@@ -1,7 +1,6 @@
 package podtracer
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -69,7 +68,7 @@ func (podtracer Podtracer) GetPod(targetPod string, targetNamespace string, kube
 
 }
 
-func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string, targetNamespace string, kubeconfig string, file string) error {
+func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string, targetNamespace string, kubeconfig string, stdoutFile string, stderrFile string) error {
 
 	pod, err := podtracer.GetPod(targetPod, targetNamespace, kubeconfig)
 	if err != nil {
@@ -86,22 +85,28 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 		return err
 	}
 
-	// Get the pod's Linux namespace object
+	// Get the pod's Linux namespace file descriptor
 	targetNS, err := ns.GetNS("/host/proc/" + pid + "/ns/net")
 	if err != nil {
 		return fmt.Errorf("error getting Pod network namespace: %v", err)
 	}
 
+	// Switching Linux Namespaces
 	err = targetNS.Do(func(hostNs ns.NetNS) error {
 
 		splitArgs := strings.Split(targetArgs, " ")
 
 		logger.Printf("[INFO] Running %s: Pod %s Namespace %s \n\n", tool, targetPod, targetNamespace)
 
-		writers := []io.Writer{}
-		if file != "" {
+		// Creating list of writers for sending retrived data
+		// TODO: needs to become its own function or method
+		// planning to add kafka writer and others here
 
-			stdoutFile, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0755)
+		stdOutWriters := []io.Writer{}
+		stdOutWriters = append(stdOutWriters, os.Stdout)
+
+		if stdoutFile != "" {
+			stdoutFile, err := os.OpenFile(stdoutFile, os.O_RDWR|os.O_CREATE, 0755)
 			if err != nil {
 				return err
 			}
@@ -111,14 +116,28 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 					return
 				}
 			}()
-
-			writers = append(writers, stdoutFile)
+			stdOutWriters = append(stdOutWriters, stdoutFile)
 		}
 
-		bufferedStderr := bytes.NewBuffer([]byte{})
+		stdErrWriters := []io.Writer{}
+		stdErrWriters = append(stdErrWriters, os.Stderr)
 
-		writeToBufferAndStdout := io.MultiWriter(os.Stdout, writers...)
-		writeToBufferAndStderr := io.MultiWriter(os.Stderr, bufferedStderr)
+		if stderrFile != "" {
+			stderrFile, err := os.OpenFile(stderrFile, os.O_RDWR|os.O_CREATE, 0755)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := stderrFile.Close(); err != nil {
+					logger.Printf("Couldn't close file stdout.txt")
+					return
+				}
+			}()
+			stdErrWriters = append(stdErrWriters, stderrFile)
+		}
+
+		writeToBufferAndStdout := io.MultiWriter(stdOutWriters...)
+		writeToBufferAndStderr := io.MultiWriter(stdErrWriters...)
 
 		cmd := exec.Command(tool, splitArgs...)
 		cmd.Stdout = writeToBufferAndStdout
