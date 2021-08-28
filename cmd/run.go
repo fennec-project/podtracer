@@ -34,7 +34,7 @@ var runCmd = &cobra.Command{
 
 		// calling main podtracer command
 		p := podtracer.Podtracer{}
-		err := p.Run(args[0], targetArgs, targetPod, targetNamespace, kubeconfig)
+		err := p.Run(args[0], targetArgs, targetPod, targetNamespace, kubeconfig, stdoutFile, stderrFile)
 		if err != nil {
 			fmt.Printf("An error ocurred while running pod tracer run: %v", err.Error())
 		}
@@ -47,6 +47,8 @@ var targetArgs string
 var targetPod string
 var targetNamespace string
 var kubeconfig string
+var stdoutFile string
+var stderrFile string
 
 func init() {
 	rootCmd.AddCommand(runCmd)
@@ -57,6 +59,8 @@ func init() {
 	runCmd.MarkFlagRequired("pod")
 	runCmd.MarkFlagRequired("namespace")
 	runCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubeconfig file path to connect to kubernetes cluster - defaults to $HOME/.kube/kubeconfig")
+	runCmd.Flags().StringVarP(&stdoutFile, "stdoutFile", "o", "", "file path to save output data from the running tool.")
+	runCmd.Flags().StringVarP(&stderrFile, "stderrFile", "e", "", "file path to save output data from the running tool.")
 }
 
 func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {

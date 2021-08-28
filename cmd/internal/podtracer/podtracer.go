@@ -1,16 +1,15 @@
 package podtracer
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"os/exec"
 
-	"os"
-
 	logger "log"
+	"os"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	corev1 "k8s.io/api/core/v1"
@@ -69,7 +68,7 @@ func (podtracer Podtracer) GetPod(targetPod string, targetNamespace string, kube
 
 }
 
-func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string, targetNamespace string, kubeconfig string) error {
+func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string, targetNamespace string, kubeconfig string, stdoutFile string, stderrFile string) error {
 
 	pod, err := podtracer.GetPod(targetPod, targetNamespace, kubeconfig)
 	if err != nil {
@@ -86,30 +85,78 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 		return err
 	}
 
-	// Get the pod's Linux namespace object
+	// Get the pod's Linux namespace file descriptor
 	targetNS, err := ns.GetNS("/host/proc/" + pid + "/ns/net")
 	if err != nil {
 		return fmt.Errorf("error getting Pod network namespace: %v", err)
 	}
 
+	// Switching Linux Namespaces
 	err = targetNS.Do(func(hostNs ns.NetNS) error {
 
 		splitArgs := strings.Split(targetArgs, " ")
 
 		logger.Printf("[INFO] Running %s: Pod %s Namespace %s \n\n", tool, targetPod, targetNamespace)
+
+		// Creating list of writers for sending retrived data
+		// TODO: needs to become its own function or method
+		// planning to add kafka writer and others here
+
+		stdOutWriters := []io.Writer{}
+		stdOutWriters = append(stdOutWriters, os.Stdout)
+
+		// TODO check if the file exists and give a warning saying
+		// it will be overwritten. Implement continue/append/cancel
+		// options
+		if stdoutFile != "" {
+			stdoutFile, err := os.OpenFile(stdoutFile, os.O_RDWR|os.O_CREATE, 0755)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := stdoutFile.Close(); err != nil {
+					logger.Printf("Couldn't close file stdout.txt")
+					return
+				}
+			}()
+			stdOutWriters = append(stdOutWriters, stdoutFile)
+		}
+
+		stdErrWriters := []io.Writer{}
+		stdErrWriters = append(stdErrWriters, os.Stderr)
+
+		// TODO check if the file exists and give a warning saying
+		// it will be overwritten. Implement continue/append/cancel
+		// options
+		if stderrFile != "" {
+			stderrFile, err := os.OpenFile(stderrFile, os.O_RDWR|os.O_CREATE, 0755)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := stderrFile.Close(); err != nil {
+					logger.Printf("Couldn't close file stdout.txt")
+					return
+				}
+			}()
+			stdErrWriters = append(stdErrWriters, stderrFile)
+		}
+
+		writeToBufferAndStdout := io.MultiWriter(stdOutWriters...)
+		writeToBufferAndStderr := io.MultiWriter(stdErrWriters...)
+
 		cmd := exec.Command(tool, splitArgs...)
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
+		cmd.Stdout = writeToBufferAndStdout
+		cmd.Stderr = writeToBufferAndStderr
+
 		err = cmd.Run()
 		if err != nil {
 			fmt.Printf("Error: %s\n %v", err.Error(), cmd.Stderr)
 			return err
 		}
 
-		Log("DATA", "Stdout: %v \n\n", stdout.String())
-		Log("DEBUG", "Stderr: %v\n Exit Code: %v", stderr.String(), err)
+		// Log("DATA", "Stdout: %v \n\n", bufferedStdout.String())
+		// Log("DEBUG", "Stderr: %v\n Exit Code: %v", bufferedStderr.String(), err)
 
 		return nil
 	})
