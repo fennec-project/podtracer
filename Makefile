@@ -5,7 +5,7 @@ NAMESPACE ?= podtracer
 # in order to develop podtracer
 DEV_NAMESPACE ?= podtracer-dev
 BUILDER ?= podman
-IMG ?= quay.io/fennec-project/podtracer:0.0.1-4
+IMG ?= quay.io/fennec-project/podtracer:0.0.1-5
 
 # podtracer-build builds podtracer binary
 podtracer-build:
@@ -26,7 +26,7 @@ podtracer-deploy:
 	kubectl create ns ${NAMESPACE}
 	kubectl apply -f manifests/deploy/ -n ${NAMESPACE}
 
-delete-podtracer:
+podtracer-delete:
 	kubectl delete -f manifests/deploy/ -n ${NAMESPACE}
 	kubectl delete ns ${NAMESPACE}
 
@@ -34,11 +34,11 @@ delete-podtracer:
 # A kubebuilder path should be included for it use or the
 # default kubebuilder $HOME/.kube/config will be used if available
 # Important to note that the target pod must be running on the same node
-dev-env:
+podtracer-dev:
 	kubectl create ns ${DEV_NAMESPACE}
 	kubectl apply -f manifests/dev/ -n ${DEV_NAMESPACE}
 
-delete-dev-env:
+delete-podtracer-dev:
 	kubectl delete -f manifests/dev/ -n ${DEV_NAMESPACE}
 	kubectl delete ns ${DEV_NAMESPACE}
 

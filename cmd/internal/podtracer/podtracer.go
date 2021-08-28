@@ -105,6 +105,9 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 		stdOutWriters := []io.Writer{}
 		stdOutWriters = append(stdOutWriters, os.Stdout)
 
+		// TODO check if the file exists and give a warning saying
+		// it will be overwritten. Implement continue/append/cancel
+		// options
 		if stdoutFile != "" {
 			stdoutFile, err := os.OpenFile(stdoutFile, os.O_RDWR|os.O_CREATE, 0755)
 			if err != nil {
@@ -122,6 +125,9 @@ func (podtracer Podtracer) Run(tool string, targetArgs string, targetPod string,
 		stdErrWriters := []io.Writer{}
 		stdErrWriters = append(stdErrWriters, os.Stderr)
 
+		// TODO check if the file exists and give a warning saying
+		// it will be overwritten. Implement continue/append/cancel
+		// options
 		if stderrFile != "" {
 			stderrFile, err := os.OpenFile(stderrFile, os.O_RDWR|os.O_CREATE, 0755)
 			if err != nil {
