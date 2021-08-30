@@ -14,6 +14,36 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
+func GetClient(kubeconfigPath string) (client.Client, error) {
+
+	// TODO: link kubeconfigPath on client.new if empty default to ~/.kube/kubeconfig
+	c, err := client.New(config.GetConfigOrDie(), client.Options{})
+	if err != nil {
+		fmt.Println("failed to create client")
+		os.Exit(1)
+	}
+	return c, nil
+}
+
+func GetPod(targetPod string, targetNamespace string, kubeconfig string) (corev1.Pod, error) {
+
+	c, err := GetClient(kubeconfig)
+	if err != nil {
+		return corev1.Pod{}, err
+	}
+
+	pod := corev1.Pod{}
+	err = c.Get(context.Background(), client.ObjectKey{
+		Namespace: targetNamespace,
+		Name:      targetPod,
+	}, &pod)
+	if err != nil {
+		return corev1.Pod{}, err
+	}
+	return pod, nil
+
+}
+
 func listPodsWithMatchingLabels(label string, value string) (*corev1.PodList, error) {
 
 	cl, err := client.New(config.GetConfigOrDie(), client.Options{})
