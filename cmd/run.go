@@ -186,50 +186,6 @@ func Run(tool string, runFlags *runFlags) error {
 
 		logger.Printf("[INFO] Running %s: Pod %s Namespace %s \n\n", tool, runFlags.targetPod, runFlags.targetNamespace)
 
-		// Creating list of writers for sending retrived data
-		// TODO: needs to become its own function or method
-		// planning to add kafka writer and others here
-
-		stdOutWriters := []io.Writer{}
-		stdOutWriters = append(stdOutWriters, os.Stdout)
-
-		// TODO check if the file exists and give a warning saying
-		// it will be overwritten. Implement continue/append/cancel
-		// options
-		if runFlags.stdoutFile != "" {
-			stdoutFile, err := os.OpenFile(runFlags.stdoutFile, os.O_RDWR|os.O_CREATE, 0755)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				if err := stdoutFile.Close(); err != nil {
-					logger.Printf("Couldn't close file stdout.txt")
-					return
-				}
-			}()
-			stdOutWriters = append(stdOutWriters, stdoutFile)
-		}
-
-		stdErrWriters := []io.Writer{}
-		stdErrWriters = append(stdErrWriters, os.Stderr)
-
-		// TODO check if the file exists and give a warning saying
-		// it will be overwritten. Implement continue/append/cancel
-		// options
-		if runFlags.stderrFile != "" {
-			stderrFile, err := os.OpenFile(runFlags.stderrFile, os.O_RDWR|os.O_CREATE, 0755)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				if err := stderrFile.Close(); err != nil {
-					logger.Printf("Couldn't close file stdout.txt")
-					return
-				}
-			}()
-			stdErrWriters = append(stdErrWriters, stderrFile)
-		}
-
 		writeToBufferAndStdout := io.MultiWriter(stdOutWriters...)
 		writeToBufferAndStderr := io.MultiWriter(stdErrWriters...)
 
