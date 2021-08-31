@@ -56,7 +56,10 @@ var runCmd = &cobra.Command{
 	},
 }
 
-type runFlags struct {
+type runCommand struct {
+	taskName string
+
+	cliTool string
 
 	// arguments for the tool being run by podtracer
 	targetArgs string
@@ -89,7 +92,7 @@ type runFlags struct {
 	// unsafe bool // --unsafe
 }
 
-var flags runFlags
+var flags runCommand
 
 func init() {
 	rootCmd.AddCommand(runCmd)
@@ -156,7 +159,7 @@ func GetPod(targetPod string, targetNamespace string, kubeconfig string) (corev1
 
 }
 
-func Run(tool string, runFlags *runFlags) error {
+func Run(tool string, runFlags *runCommand) error {
 
 	pod, err := GetPod(runFlags.targetPod, runFlags.targetNamespace, runFlags.kubeconfig)
 	if err != nil {

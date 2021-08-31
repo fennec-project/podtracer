@@ -105,3 +105,4 @@ func (w *Writers) CleanUp() error {
 // setup cassandra writer
 // setup wireshark writer
 // setup jupyter-notebook writer
+// neo4j ?
