@@ -41,6 +41,26 @@ type Podtracer struct {
 	task string
 }
 
+func (p *Podtracer) Init(podName string, Namespace string, kubeconfigPath string) error {
+
+	err := p.GetClient(kubeconfigPath)
+	if err != nil {
+		return err
+	}
+
+	err = p.GetPod(podName, Namespace)
+	if err != nil {
+		return err
+	}
+
+	err = p.GetCRIOContainerInfo(p.GetContainerIDs(p.TargetPod)[0])
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (p *Podtracer) GetClient(kubeconfigPath string) error {
 
 	// TODO: link kubeconfigPath on client.new if empty default to ~/.kube/kubeconfig
@@ -53,7 +73,7 @@ func (p *Podtracer) GetClient(kubeconfigPath string) error {
 	return nil
 }
 
-func (p *Podtracer) GetPod(targetPodName string, targetNamespace string, kubeconfig string) error {
+func (p *Podtracer) GetPod(targetPodName string, targetNamespace string) error {
 
 	targetPod := corev1.Pod{}
 	err := p.Get(context.Background(), client.ObjectKey{

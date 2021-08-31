@@ -20,19 +20,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"context"
-	"io"
-	"strings"
-
-	"os/exec"
-
-	logger "log"
-	"os"
-
-	"github.com/containernetworking/plugins/pkg/ns"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	Podtracer "github.com/fennec-project/podtracer/cmd/internal/podtracer"
 )
 
 // runCmd represents the run command
@@ -47,9 +35,8 @@ var runCmd = &cobra.Command{
 	Args: argFuncs(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
 	Run: func(cmd *cobra.Command, args []string) {
 
-		// calling main podtracer command
-		// p := podtracer.Podtracer{}
-		err := Run(args[0], &flags)
+		r := &runCommand{}
+		err := r.Run(args[0])
 		if err != nil {
 			fmt.Printf("An error ocurred while running pod tracer run: %v", err.Error())
 		}
@@ -65,7 +52,7 @@ type runCommand struct {
 	targetArgs string
 
 	// the of the pod under troubleshooting
-	targetPod string
+	targetPodName string
 
 	// namespace of the pod under troubleshooting
 	targetNamespace string
@@ -75,7 +62,7 @@ type runCommand struct {
 	// The service account running podtracer Pod should be enough to list
 	// pods and namespaces. But under dev env with VSCode it's seems to
 	// be required.
-	kubeconfig string
+	kubeconfigPath string
 
 	// file path to store os/exec cmd.stdout output
 	stdoutFile string
@@ -101,11 +88,11 @@ func init() {
 
 	runCmd.Flags().StringVarP(&flags.targetArgs, "arguments", "a", "", "arguments to running cli utility.")
 
-	runCmd.Flags().StringVar(&flags.targetPod, "pod", "", "Target pod name.")
+	runCmd.Flags().StringVar(&flags.targetPodName, "pod", "", "Target pod name.")
 
 	runCmd.Flags().StringVarP(&flags.targetNamespace, "namespace", "n", "", "Kubernetes namespace where the target pod is running")
 
-	runCmd.Flags().StringVarP(&flags.kubeconfig, "kubeconfig", "k", "", "kubeconfig file path to connect to kubernetes cluster - defaults to $HOME/.kube/kubeconfig")
+	runCmd.Flags().StringVarP(&flags.kubeconfigPath, "kubeconfig", "k", "", "kubeconfig file path to connect to kubernetes cluster - defaults to $HOME/.kube/kubeconfig")
 
 	runCmd.Flags().StringVarP(&flags.stdoutFile, "stdoutFile", "o", "", "file path to save output data from the running tool.")
 
@@ -129,88 +116,28 @@ func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
 	}
 }
 
-func GetClient(kubeconfigPath string) (client.Client, error) {
+func (r *runCommand) Run(cliTool string) error {
 
-	// TODO: link kubeconfigPath on client.new if empty default to ~/.kube/kubeconfig
-	c, err := client.New(config.GetConfigOrDie(), client.Options{})
-	if err != nil {
-		fmt.Println("failed to create client")
-		os.Exit(1)
-	}
-	return c, nil
-}
+	r.cliTool = cliTool
 
-func GetPod(targetPod string, targetNamespace string, kubeconfig string) (corev1.Pod, error) {
+	// 1 - Instantiate podtracer
+	podtracer := Podtracer.Podtracer{}
 
-	c, err := GetClient(kubeconfig)
-	if err != nil {
-		return corev1.Pod{}, err
-	}
+	// 2 - Run podtracer init method
+	podtracer.Init(r.targetPodName, r.targetNamespace, r.kubeconfigPath)
 
-	pod := corev1.Pod{}
-	err = c.Get(context.Background(), client.ObjectKey{
-		Namespace: targetNamespace,
-		Name:      targetPod,
-	}, &pod)
-	if err != nil {
-		return corev1.Pod{}, err
-	}
-	return pod, nil
+	// 3 - Instantiate Writers
+	writers := Podtracer.Writers{}
 
-}
+	// 4 - Run writers init method
+	writers.Init()
+	writers.SetFileWriters(r.stdoutFile, r.stderrFile)
 
-func Run(tool string, runFlags *runCommand) error {
+	// 5 - execute tool using containerns methods
 
-	pod, err := GetPod(runFlags.targetPod, runFlags.targetNamespace, runFlags.kubeconfig)
-	if err != nil {
-		fmt.Println(err.Error())
-		return err
-	}
+	// 6 - handle signals from terminal
 
-	// TODO: create a podInspect struct to handle pod and container data
-	// and add it as a receiver on the getPid function.
-
-	pid, err := getPid(pod)
-	if err != nil {
-		fmt.Println(err.Error())
-		return err
-	}
-
-	// Get the pod's Linux namespace file descriptor
-	targetNS, err := ns.GetNS("/host/proc/" + pid + "/ns/net")
-	if err != nil {
-		return fmt.Errorf("error getting Pod network namespace: %v", err)
-	}
-
-	// Switching Linux Namespaces
-	err = targetNS.Do(func(hostNs ns.NetNS) error {
-
-		splitArgs := strings.Split(runFlags.targetArgs, " ")
-
-		logger.Printf("[INFO] Running %s: Pod %s Namespace %s \n\n", tool, runFlags.targetPod, runFlags.targetNamespace)
-
-		writeToBufferAndStdout := io.MultiWriter(stdOutWriters...)
-		writeToBufferAndStderr := io.MultiWriter(stdErrWriters...)
-
-		cmd := exec.Command(tool, splitArgs...)
-		cmd.Stdout = writeToBufferAndStdout
-		cmd.Stderr = writeToBufferAndStderr
-
-		err = cmd.Run()
-		if err != nil {
-			fmt.Printf("Error: %s\n %v", err.Error(), cmd.Stderr)
-			return err
-		}
-
-		// Log("DATA", "Stdout: %v \n\n", bufferedStdout.String())
-		// Log("DEBUG", "Stderr: %v\n Exit Code: %v", bufferedStderr.String(), err)
-
-		return nil
-	})
-	if err != nil {
-		fmt.Println(err.Error())
-		return err
-	}
+	// 7 - if finished or terminated run writers closers functions
 
 	return nil
 }

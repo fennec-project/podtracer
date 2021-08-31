@@ -23,6 +23,16 @@ type Writers struct {
 	EnableStderr bool
 }
 
+func (w *Writers) Init() {
+
+	// Future work will provide a way to disable
+	// those variable if it's needed
+	w.EnableStdout = true
+	w.EnableStderr = true
+	w.SetOSWriters()
+
+}
+
 // Stdout and Stderr are open Files pointing to the standard output and standard error file descriptors
 // Any command line output and errors will be written
 func (w *Writers) SetOSWriters() {
