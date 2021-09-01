@@ -26,7 +26,7 @@ type Writers struct {
 func (w *Writers) Init() {
 
 	// Future work will provide a way to disable
-	// those variable if it's needed
+	// those variables if it's needed
 	w.EnableStdout = true
 	w.EnableStderr = true
 	w.SetOSWriters()
@@ -45,7 +45,7 @@ func (w *Writers) SetOSWriters() {
 	if w.EnableStderr {
 		w.StderrWriters = append(w.StderrWriters, os.Stderr)
 	}
-	return
+
 }
 
 // Setup file writers to store stdout and stderr

@@ -27,10 +27,14 @@ type Runner struct {
 	NetNS ns.NetNS
 }
 
-func (r *Runner) init() error {
+func (r *Runner) Init(containerContext ContainerContext) error {
 
-	// Initializint NetNS for podtracer
-	targetNS, err := ns.GetNS(HostProcPath + c.ContainerPID + "/ns/net")
+	// Storing container ID and PID for future auditing feature
+	r.ContainerID = containerContext.GetContainerID()
+	r.ContainerPID = containerContext.GetContainerPID()
+
+	// Initializing NetNS for podtracer
+	targetNS, err := ns.GetNS(HostProcPath + r.ContainerPID + "/ns/net")
 	if err != nil {
 		return fmt.Errorf("error getting Pod network namespace: %v", err)
 	}
@@ -38,13 +42,26 @@ func (r *Runner) init() error {
 	return nil
 }
 
-func (r *Runner) RunOnNetNS(f func() error) error {
+func (r *Runner) RunOSExec(f func() error) error {
 
 	// Switching Linux Namespaces according to the path above
+	// Only network namespace are implemented for now
 	err := r.NetNS.Do(func(hostNs ns.NetNS) error {
 
 		err := f()
 		if err != nil {
+			return err
+		}
+
+		splitArgs := strings.Split(targetArgs, " ")
+
+		cmd := exec.Command(tool, splitArgs...)
+		cmd.Stdout = io.MultiWriter(stdOutWriters...)
+		cmd.Stderr = io.MultiWriter(stdErrWriters...)
+
+		err := cmd.Run()
+		if err != nil {
+			fmt.Printf("Error: %s\n %v", err.Error(), cmd.Stderr)
 			return err
 		}
 

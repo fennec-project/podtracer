@@ -120,20 +120,25 @@ func (r *runCommand) Run(cliTool string) error {
 
 	r.cliTool = cliTool
 
-	// 1 - Instantiate podtracer
-	podtracer := Podtracer.Podtracer{}
+	// Initializing podtracer will get all pod and container
+	// information from kubeapi-server and container engine.
+	containerContext := Podtracer.ContainerContext{}
+	containerContext.Init(r.targetPodName, r.targetNamespace, r.kubeconfigPath)
 
-	// 2 - Run podtracer init method
-	podtracer.Init(r.targetPodName, r.targetNamespace, r.kubeconfigPath)
-
-	// 3 - Instantiate Writers
+	// Initializing writers will setup stdout and stderr for any command
+	// by default and also setup any other desired writers such as file
+	// writers.
 	writers := Podtracer.Writers{}
-
-	// 4 - Run writers init method
 	writers.Init()
 	writers.SetFileWriters(r.stdoutFile, r.stderrFile)
 
-	// 5 - execute tool using containerns methods
+	// The runner component has methods to run tasks. Under the run command here
+	// it will trigger the runOSExec method calling the desired cli tool within
+	// the desired container context
+	runner := Podtracer.Runner{}
+	runner.Init(containerContext, writers)
+
+	// 5 - execute tool using runner methods
 
 	// 6 - handle signals from terminal
 

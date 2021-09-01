@@ -17,7 +17,7 @@ import (
 // or podtracers task(s) running and all interesting pieces of
 // information that may be added to the os/exec write operation
 // to enrich data passed along to central data collection endpoints
-type Podtracer struct {
+type ContainerContext struct {
 
 	// This client should use only pod's token credentials
 	// With the service account being able to list but not
@@ -29,31 +29,29 @@ type Podtracer struct {
 	// on multiple smaller fields
 	TargetPod corev1.Pod
 
-	// ContainersInfo is the complete json blob coming from the
-	// info field on CRI-O's containerStatusResponse
-	// It may de-scoped to less information distributed on
-	// multiple smaller fields
-	ContainersInfo []map[string]interface{}
+	// InspectInfo is the complete json blob coming from the
+	// inspect information from the container engine response
+	InspectInfo []map[string]interface{}
 
 	// The task in execution. May be a cli tool under the run
 	// command, executing any go package that uder a different
 	// command or eBPF tools for example
-	task string
+	// task string
 }
 
-func (p *Podtracer) Init(podName string, Namespace string, kubeconfigPath string) error {
+func (cctx *ContainerContext) Init(podName string, Namespace string, kubeconfigPath string) error {
 
-	err := p.GetClient(kubeconfigPath)
+	err := cctx.GetClient(kubeconfigPath)
 	if err != nil {
 		return err
 	}
 
-	err = p.GetPod(podName, Namespace)
+	err = cctx.GetPod(podName, Namespace)
 	if err != nil {
 		return err
 	}
 
-	err = p.GetCRIOContainerInfo(p.GetContainerIDs(p.TargetPod)[0])
+	err = cctx.GetCRIOContainerInfo(cctx.getContainerIDs(cctx.TargetPod)[0])
 	if err != nil {
 		return err
 	}
@@ -61,22 +59,38 @@ func (p *Podtracer) Init(podName string, Namespace string, kubeconfigPath string
 	return nil
 }
 
-func (p *Podtracer) GetClient(kubeconfigPath string) error {
+// The first container ID for Pod level operations only
+// Example network or mount operations that are shared among containers
+// NOTE: on specific container Linux namespaces another method
+// must be implement to select which container should be returned
+func (cctx *ContainerContext) GetContainerID() string {
+
+	return fmt.Sprintf("%.0f", cctx.InspectInfo[0]["ContainerID"])
+
+}
+
+func (cctx *ContainerContext) GetContainerPID() string {
+
+	return fmt.Sprintf("%.0f", cctx.InspectInfo[0]["pid"])
+
+}
+
+func (cctx *ContainerContext) GetClient(kubeconfigPath string) error {
 
 	// TODO: link kubeconfigPath on client.new if empty default to ~/.kube/kubeconfig
-	c, err := client.New(config.GetConfigOrDie(), client.Options{})
+	client, err := client.New(config.GetConfigOrDie(), client.Options{})
 	if err != nil {
 		fmt.Println("failed to create client")
 		os.Exit(1)
 	}
-	p.Client = c
+	cctx.Client = client
 	return nil
 }
 
-func (p *Podtracer) GetPod(targetPodName string, targetNamespace string) error {
+func (cctx *ContainerContext) GetPod(targetPodName string, targetNamespace string) error {
 
 	targetPod := corev1.Pod{}
-	err := p.Get(context.Background(), client.ObjectKey{
+	err := cctx.Get(context.Background(), client.ObjectKey{
 		Namespace: targetNamespace,
 		Name:      targetPodName,
 	}, &targetPod)
@@ -84,11 +98,14 @@ func (p *Podtracer) GetPod(targetPodName string, targetNamespace string) error {
 		return err
 	}
 
-	p.TargetPod = targetPod
+	cctx.TargetPod = targetPod
 	return nil
 }
 
-func (p *Podtracer) GetContainerIDs(pod corev1.Pod) []string {
+// Private to containerContext. Should be used to communicate with the container
+// engine. Once the container engine responds with the container inspect info
+// each instance of that info represents one targeted container with ID, PID etc.
+func (cctx *ContainerContext) getContainerIDs(pod corev1.Pod) []string {
 
 	containerIDs := []string{}
 
@@ -101,7 +118,7 @@ func (p *Podtracer) GetContainerIDs(pod corev1.Pod) []string {
 	return containerIDs
 }
 
-func (p *Podtracer) GetCRIOContainerInfo(containerID string) error {
+func (cctx *ContainerContext) GetCRIOContainerInfo(containerID string) error {
 
 	var grpcConn *grpc.ClientConn
 
@@ -139,7 +156,7 @@ func (p *Podtracer) GetCRIOContainerInfo(containerID string) error {
 		return err
 	}
 
-	p.ContainersInfo = append(p.ContainersInfo, parsedContainerInfo)
+	cctx.InspectInfo = append(cctx.InspectInfo, parsedContainerInfo)
 
 	return nil
 }
@@ -148,11 +165,11 @@ func (p *Podtracer) GetCRIOContainerInfo(containerID string) error {
 // For now this method isn't in use. It's for a future use targeting multiple
 // pods at the same time with possibly multiple tasks. Yaml configuration
 // must be created to handle a more complex set of parameters.
-func (p *Podtracer) ListPodsWithMatchingLabels(label string, value string) error {
+func (cctx *ContainerContext) ListPodsWithMatchingLabels(label string, value string) error {
 
 	podList := &corev1.PodList{}
 	// Get the list of pods that have a podNetworkConfig label
-	err := p.List(context.Background(), podList, client.MatchingLabels{label: value})
+	err := cctx.List(context.Background(), podList, client.MatchingLabels{label: value})
 	if err != nil {
 		fmt.Printf("failed to list pods matching labels: %v\n", err)
 		os.Exit(1)
@@ -161,7 +178,7 @@ func (p *Podtracer) ListPodsWithMatchingLabels(label string, value string) error
 	// Pods need to be at least created to proceed
 	// Checking if the list is empty
 	if len(podList.Items) <= 0 {
-		return fmt.Errorf("No matching Pods found with label %s: %s", label, value)
+		return fmt.Errorf("no matching pods found with label %s: %s", label, value)
 	}
 	return nil
 }
