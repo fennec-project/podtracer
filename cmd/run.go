@@ -37,8 +37,7 @@ var runCmd = &cobra.Command{
 	Args: argFuncs(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
 	Run: func(cmd *cobra.Command, args []string) {
 
-		r := &runCommand{}
-		err := r.Run(args[0])
+		err := Run(args[0])
 		if err != nil {
 			fmt.Printf("An error ocurred while running pod tracer run: %v", err.Error())
 
@@ -49,7 +48,6 @@ var runCmd = &cobra.Command{
 // runCmd represents the run command
 
 type runCommand struct {
-	cliTool string
 
 	// arguments for the tool being run by podtracer
 	targetArgs string
@@ -121,21 +119,19 @@ func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
 	}
 }
 
-func (r *runCommand) Run(cliTool string) error {
-
-	r.cliTool = cliTool
+func Run(cliTool string) error {
 
 	// Initializing podtracer will get all pod and container
 	// information from kubeapi-server and container engine.
 	containerContext := Podtracer.ContainerContext{}
-	containerContext.Init(r.targetPodName, r.targetNamespace, r.kubeconfigPath)
+	containerContext.Init(flags.targetPodName, flags.targetNamespace, flags.kubeconfigPath)
 
 	// Initializing writers will setup stdout and stderr for any command
 	// by default and also setup any other desired writers such as file
 	// writers.
 	writers := Podtracer.Writers{}
 	writers.Init()
-	writers.SetFileWriters(r.stdoutFile, r.stderrFile)
+	writers.SetFileWriters(flags.stdoutFile, flags.stderrFile)
 
 	// The runner component has methods to run tasks. Under the run command here
 	// it will trigger the runOSExec method calling the desired cli tool within
@@ -148,8 +144,6 @@ func (r *runCommand) Run(cliTool string) error {
 	cmd.Stderr = io.MultiWriter(writers.StderrWriters...)
 
 	Podtracer.Execute(cmd, &containerContext)
-
-	// 7 - if finished or terminated run writers closers functions
 
 	return nil
 }

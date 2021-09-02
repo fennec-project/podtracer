@@ -13,13 +13,13 @@ type Runner interface {
 }
 
 type PID interface {
-	GetContainerPID() int
+	GetContainerPID() string
 }
 
 func Execute(r Runner, pid PID) error {
 
 	// Initializing NetNS for podtracer
-	targetNS, err := ns.GetNS(HostProcPath + fmt.Sprintf("%d", pid.GetContainerPID()) + "/ns/net")
+	targetNS, err := ns.GetNS(HostProcPath + pid.GetContainerPID() + "/ns/net")
 	if err != nil {
 		return fmt.Errorf("error getting Pod network namespace: %v", err)
 	}
