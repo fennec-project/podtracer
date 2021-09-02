@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 
 	"google.golang.org/grpc"
@@ -69,9 +70,14 @@ func (cctx *ContainerContext) GetContainerID() string {
 
 }
 
-func (cctx *ContainerContext) GetContainerPID() string {
+func (cctx *ContainerContext) GetContainerPID() int {
 
-	return fmt.Sprintf("%.0f", cctx.InspectInfo[0]["pid"])
+	pid, ok := cctx.InspectInfo[0]["pid"].(int)
+	if !ok {
+		log.Fatal("Non numeric pid has been provided.")
+	}
+
+	return pid
 
 }
 

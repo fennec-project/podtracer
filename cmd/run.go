@@ -17,19 +17,21 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"os/exec"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	Podtracer "github.com/fennec-project/podtracer/cmd/internal/podtracer"
 )
 
-// runCmd represents the run command
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Runs arbitrary Linux command on a targeted kubernetes pod.",
 	Long: `podtracer run - runs arbitrary Linux command line tools such as tcpdump, 
-	tshark, iperf and others to acquire network data and metrics for observability purposes 
-	 without changing the pod.`,
+		tshark, iperf and others to acquire network data and metrics for observability purposes 
+		 without changing the pod.`,
 
 	// ValidArgs: []string{"tcpdump"},
 	Args: argFuncs(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
@@ -39,13 +41,14 @@ var runCmd = &cobra.Command{
 		err := r.Run(args[0])
 		if err != nil {
 			fmt.Printf("An error ocurred while running pod tracer run: %v", err.Error())
+
 		}
 	},
 }
 
-type runCommand struct {
-	taskName string
+// runCmd represents the run command
 
+type runCommand struct {
 	cliTool string
 
 	// arguments for the tool being run by podtracer
@@ -82,6 +85,7 @@ type runCommand struct {
 var flags runCommand
 
 func init() {
+
 	rootCmd.AddCommand(runCmd)
 
 	// Flags for run
@@ -102,6 +106,7 @@ func init() {
 	runCmd.MarkFlagRequired("pod")
 
 	runCmd.MarkFlagRequired("namespace")
+
 }
 
 func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
@@ -135,12 +140,14 @@ func (r *runCommand) Run(cliTool string) error {
 	// The runner component has methods to run tasks. Under the run command here
 	// it will trigger the runOSExec method calling the desired cli tool within
 	// the desired container context
-	runner := Podtracer.Runner{}
-	runner.Init(containerContext, writers)
 
-	// 5 - execute tool using runner methods
+	splitArgs := strings.Split(flags.targetArgs, " ")
 
-	// 6 - handle signals from terminal
+	cmd := exec.Command(cliTool, splitArgs...)
+	cmd.Stdout = io.MultiWriter(writers.StdoutWriters...)
+	cmd.Stderr = io.MultiWriter(writers.StderrWriters...)
+
+	Podtracer.Execute(cmd, &containerContext)
 
 	// 7 - if finished or terminated run writers closers functions
 
