@@ -18,6 +18,7 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -124,14 +125,32 @@ func Run(cliTool string) error {
 	// Initializing podtracer will get all pod and container
 	// information from kubeapi-server and container engine.
 	containerContext := Podtracer.ContainerContext{}
-	containerContext.Init(flags.targetPodName, flags.targetNamespace, flags.kubeconfigPath)
+	err := containerContext.Init(flags.targetPodName, flags.targetNamespace, flags.kubeconfigPath)
+	if err != nil {
+		return err
+	}
 
-	// Initializing writers will setup stdout and stderr for any command
-	// by default and also setup any other desired writers such as file
-	// writers.
-	writers := Podtracer.Writers{}
-	writers.Init()
-	writers.SetFileWriters(flags.stdoutFile, flags.stderrFile)
+	stdoutWriters := []io.Writer{}
+	stdoutWriters = append(stdoutWriters, os.Stdout)
+	if flags.stdoutFile != "" {
+
+		stdoutFile, err := os.OpenFile(flags.stdoutFile, os.O_RDWR|os.O_CREATE, 0755)
+		if err != nil {
+			return err
+		}
+		stdoutWriters = append(stdoutWriters, stdoutFile)
+	}
+
+	stderrWriters := []io.Writer{}
+	stderrWriters = append(stderrWriters, os.Stdout)
+	if flags.stdoutFile != "" {
+
+		stderrFile, err := os.OpenFile(flags.stderrFile, os.O_RDWR|os.O_CREATE, 0755)
+		if err != nil {
+			return err
+		}
+		stderrWriters = append(stdoutWriters, stderrFile)
+	}
 
 	// The runner component has methods to run tasks. Under the run command here
 	// it will trigger the runOSExec method calling the desired cli tool within
@@ -140,20 +159,10 @@ func Run(cliTool string) error {
 	splitArgs := strings.Split(flags.targetArgs, " ")
 
 	cmd := exec.Command(cliTool, splitArgs...)
-	cmd.Stdout = io.MultiWriter(writers.StdoutWriters...)
-	cmd.Stderr = io.MultiWriter(writers.StderrWriters...)
+	cmd.Stdout = io.MultiWriter(stdoutWriters...)
+	cmd.Stderr = io.MultiWriter(stderrWriters...)
 
 	Podtracer.Execute(cmd, &containerContext)
 
 	return nil
 }
-
-// func run(...args)
-// 	1 - Get a client to talk to kubernetes
-// 	2 - Get the target Pod or Pods by the chosen criteria (can we pass context withValues on this get query?)
-//  3 - Get the Pod's first container Pid (can we choose the container instead?)
-// 	4 - Setup the file descriptor for the Linux namespace switching (can we add other namespaces? Extend this to something like strace or ftrace?)
-// 	5 - Switch to target namespace or namespaces
-// 		a. setup writers to collect data
-//		b. run tool with os.exec
-// 			- needs to handle all sorts of SIGnals and terminate properly the child process

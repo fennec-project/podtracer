@@ -41,17 +41,21 @@ type ContainerContext struct {
 
 func (cctx *ContainerContext) Init(podName string, Namespace string, kubeconfigPath string) error {
 
-	err := cctx.GetClient(kubeconfigPath)
+	// Create client
+	err := cctx.getClient(kubeconfigPath)
 	if err != nil {
 		return err
 	}
 
-	err = cctx.GetPod(podName, Namespace)
+	// Get specified pod
+	err = cctx.getPod(podName, Namespace)
 	if err != nil {
 		return err
 	}
 
-	err = cctx.GetCRIOContainerInfo(cctx.getContainerIDs(cctx.TargetPod)[0])
+	// Query CRIO by container id 0
+	// Only one container is necessary to identify the Pod's network namespace
+	err = cctx.getCRIOContainerInfo(cctx.getContainerIDs(cctx.TargetPod)[0])
 	if err != nil {
 		return err
 	}
@@ -63,11 +67,11 @@ func (cctx *ContainerContext) Init(podName string, Namespace string, kubeconfigP
 // Example network or mount operations that are shared among containers
 // NOTE: on specific container Linux namespaces another method
 // must be implement to select which container should be returned
-func (cctx *ContainerContext) GetContainerID() string {
+// func (cctx *ContainerContext) getContainerID() string {
 
-	return fmt.Sprintf("%.0f", cctx.InspectInfo[0]["ContainerID"])
+// 	return fmt.Sprintf("%.0f", cctx.InspectInfo[0]["ContainerID"])
 
-}
+// }
 
 func (cctx *ContainerContext) GetContainerPID() string {
 
@@ -75,7 +79,7 @@ func (cctx *ContainerContext) GetContainerPID() string {
 
 }
 
-func (cctx *ContainerContext) GetClient(kubeconfigPath string) error {
+func (cctx *ContainerContext) getClient(kubeconfigPath string) error {
 
 	// TODO: link kubeconfigPath on client.new if empty default to ~/.kube/kubeconfig
 	client, err := client.New(config.GetConfigOrDie(), client.Options{})
@@ -87,7 +91,7 @@ func (cctx *ContainerContext) GetClient(kubeconfigPath string) error {
 	return nil
 }
 
-func (cctx *ContainerContext) GetPod(targetPodName string, targetNamespace string) error {
+func (cctx *ContainerContext) getPod(targetPodName string, targetNamespace string) error {
 
 	targetPod := corev1.Pod{}
 	err := cctx.Get(context.Background(), client.ObjectKey{
@@ -118,7 +122,7 @@ func (cctx *ContainerContext) getContainerIDs(pod corev1.Pod) []string {
 	return containerIDs
 }
 
-func (cctx *ContainerContext) GetCRIOContainerInfo(containerID string) error {
+func (cctx *ContainerContext) getCRIOContainerInfo(containerID string) error {
 
 	var grpcConn *grpc.ClientConn
 
@@ -165,20 +169,20 @@ func (cctx *ContainerContext) GetCRIOContainerInfo(containerID string) error {
 // For now this method isn't in use. It's for a future use targeting multiple
 // pods at the same time with possibly multiple tasks. Yaml configuration
 // must be created to handle a more complex set of parameters.
-func (cctx *ContainerContext) ListPodsWithMatchingLabels(label string, value string) error {
+// func (cctx *ContainerContext) listPodsWithMatchingLabels(label string, value string) error {
 
-	podList := &corev1.PodList{}
-	// Get the list of pods that have a podNetworkConfig label
-	err := cctx.List(context.Background(), podList, client.MatchingLabels{label: value})
-	if err != nil {
-		fmt.Printf("failed to list pods matching labels: %v\n", err)
-		os.Exit(1)
-	}
+// 	podList := &corev1.PodList{}
+// 	// Get the list of pods that have a podNetworkConfig label
+// 	err := cctx.List(context.Background(), podList, client.MatchingLabels{label: value})
+// 	if err != nil {
+// 		fmt.Printf("failed to list pods matching labels: %v\n", err)
+// 		os.Exit(1)
+// 	}
 
-	// Pods need to be at least created to proceed
-	// Checking if the list is empty
-	if len(podList.Items) <= 0 {
-		return fmt.Errorf("no matching pods found with label %s: %s", label, value)
-	}
-	return nil
-}
+// 	// Pods need to be at least created to proceed
+// 	// Checking if the list is empty
+// 	if len(podList.Items) <= 0 {
+// 		return fmt.Errorf("no matching pods found with label %s: %s", label, value)
+// 	}
+// 	return nil
+// }
