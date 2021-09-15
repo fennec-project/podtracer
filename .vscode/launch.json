@@ -10,7 +10,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}",
-      "args": ["run","iperf", "-a", "-s", "--pod", "cnf-example-pod-98b9d4df8-98zbf", "-n", "cnf-telco", "-o", "stdoutFile.txt", "-e", "stderrFile.txt"],
+      "args": ["run","iperf", "-a", "-s", "--pod", "cnf-example-pod-98b9d4df8-dl84w", "-n", "cnf-telco", "-o", "stdoutFile.txt", "-e", "stderrFile.txt"],
       // "args": ["run"],
       "env": {"PODTRACER_LOGLEVEL":"INFO"}
     }
