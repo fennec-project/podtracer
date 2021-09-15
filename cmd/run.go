@@ -17,50 +17,95 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"strings"
 
-	"github.com/fennec-project/podtracer/cmd/internal/podtracer"
 	"github.com/spf13/cobra"
+
+	Podtracer "github.com/fennec-project/podtracer/cmd/internal/podtracer"
 )
 
-// runCmd represents the run command
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Runs the chosen tool on a target pod.",
-	Long: `The run command allows running tools such as tcpdump, tshark, iperf and others
-	to acquire network data and metrics for observability purposes without changing the pod.`,
+	Short: "Runs arbitrary Linux command on a targeted kubernetes pod.",
+	Long: `podtracer run - runs arbitrary Linux command line tools such as tcpdump, 
+		tshark, iperf and others to acquire network data and metrics for observability purposes 
+		 without changing the pod.`,
+
 	// ValidArgs: []string{"tcpdump"},
 	Args: argFuncs(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
 	Run: func(cmd *cobra.Command, args []string) {
 
-		// calling main podtracer command
-		p := podtracer.Podtracer{}
-		err := p.Run(args[0], targetArgs, targetPod, targetNamespace, kubeconfig, stdoutFile, stderrFile)
+		err := Run(args[0])
 		if err != nil {
 			fmt.Printf("An error ocurred while running pod tracer run: %v", err.Error())
-		}
 
+		}
 	},
 }
 
-// vars for flags
-var targetArgs string
-var targetPod string
-var targetNamespace string
-var kubeconfig string
-var stdoutFile string
-var stderrFile string
+// runCmd represents the run command
+
+type runCommand struct {
+
+	// arguments for the tool being run by podtracer
+	targetArgs string
+
+	// the of the pod under troubleshooting
+	targetPodName string
+
+	// namespace of the pod under troubleshooting
+	targetNamespace string
+
+	// path for kubeconfig file
+	// TODO: still needs investigation if it is really needed
+	// The service account running podtracer Pod should be enough to list
+	// pods and namespaces. But under dev env with VSCode it's seems to
+	// be required.
+	kubeconfigPath string
+
+	// file path to store os/exec cmd.stdout output
+	stdoutFile string
+
+	// file path to store os/exec cmd.stderr output
+	stderrFile string
+
+	// TODO: Linux namespace set to switch to before running
+	// selected tools with podtracer.
+	// Needs to be its own type limited to only valid namespaces.
+	// linuxNSSet linuxNSSet
+
+	// TODO: enable running non-valid untested args as tools
+	// unsafe bool // --unsafe
+}
+
+var flags runCommand
 
 func init() {
+
 	rootCmd.AddCommand(runCmd)
 
-	runCmd.Flags().StringVarP(&targetArgs, "arguments", "a", "", "arguments to running cli utility.")
-	runCmd.Flags().StringVar(&targetPod, "pod", "", "Target pod name.")
-	runCmd.Flags().StringVarP(&targetNamespace, "namespace", "n", "", "Kubernetes namespace where the target pod is running")
+	// Flags for run
+
+	runCmd.Flags().StringVarP(&flags.targetArgs, "arguments", "a", "", "arguments to running cli utility.")
+
+	runCmd.Flags().StringVar(&flags.targetPodName, "pod", "", "Target pod name.")
+
+	runCmd.Flags().StringVarP(&flags.targetNamespace, "namespace", "n", "", "Kubernetes namespace where the target pod is running")
+
+	runCmd.Flags().StringVarP(&flags.kubeconfigPath, "kubeconfig", "k", "", "kubeconfig file path to connect to kubernetes cluster - defaults to $HOME/.kube/kubeconfig")
+
+	runCmd.Flags().StringVarP(&flags.stdoutFile, "stdoutFile", "o", "", "file path to save output data from the running tool.")
+
+	runCmd.Flags().StringVarP(&flags.stderrFile, "stderrFile", "e", "", "file path to save output data from the running tool.")
+
+	// Required Flags
 	runCmd.MarkFlagRequired("pod")
+
 	runCmd.MarkFlagRequired("namespace")
-	runCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "k", "", "kubeconfig file path to connect to kubernetes cluster - defaults to $HOME/.kube/kubeconfig")
-	runCmd.Flags().StringVarP(&stdoutFile, "stdoutFile", "o", "", "file path to save output data from the running tool.")
-	runCmd.Flags().StringVarP(&stderrFile, "stderrFile", "e", "", "file path to save output data from the running tool.")
+
 }
 
 func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
@@ -73,4 +118,51 @@ func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
 		}
 		return nil
 	}
+}
+
+func Run(cliTool string) error {
+
+	// Initializing podtracer will get all pod and container
+	// information from kubeapi-server and container engine.
+	containerContext := Podtracer.ContainerContext{}
+	err := containerContext.Init(flags.targetPodName, flags.targetNamespace, flags.kubeconfigPath)
+	if err != nil {
+		return err
+	}
+
+	stdoutWriters := []io.Writer{}
+	stdoutWriters = append(stdoutWriters, os.Stdout)
+	if flags.stdoutFile != "" {
+
+		stdoutFile, err := os.OpenFile(flags.stdoutFile, os.O_RDWR|os.O_CREATE, 0755)
+		if err != nil {
+			return err
+		}
+		stdoutWriters = append(stdoutWriters, stdoutFile)
+	}
+
+	stderrWriters := []io.Writer{}
+	stderrWriters = append(stderrWriters, os.Stdout)
+	if flags.stdoutFile != "" {
+
+		stderrFile, err := os.OpenFile(flags.stderrFile, os.O_RDWR|os.O_CREATE, 0755)
+		if err != nil {
+			return err
+		}
+		stderrWriters = append(stdoutWriters, stderrFile)
+	}
+
+	// The runner component has methods to run tasks. Under the run command here
+	// it will trigger the runOSExec method calling the desired cli tool within
+	// the desired container context
+
+	splitArgs := strings.Split(flags.targetArgs, " ")
+
+	cmd := exec.Command(cliTool, splitArgs...)
+	cmd.Stdout = io.MultiWriter(stdoutWriters...)
+	cmd.Stderr = io.MultiWriter(stderrWriters...)
+
+	Podtracer.Execute(cmd, &containerContext)
+
+	return nil
 }
