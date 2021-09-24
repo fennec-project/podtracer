@@ -169,7 +169,7 @@ func Run(cliTool string) error {
 	// the desired container context
 
 	if net.ParseIP(flags.destinationIP) != nil {
-		cliCommand := cliTool + " " + flags.targetArgs + " | netcat " + flags.destinationIP + " " + flags.destinationPort
+		cliCommand := cliTool + " " + flags.targetArgs + " | nc " + flags.destinationIP + " " + flags.destinationPort
 		cmd := exec.Command("bash", "-c", cliCommand)
 		cmd.Stdout = io.MultiWriter(stdoutWriters...)
 		cmd.Stderr = io.MultiWriter(stderrWriters...)
