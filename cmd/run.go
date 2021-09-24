@@ -22,6 +22,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"net"
+
 	"github.com/spf13/cobra"
 
 	Podtracer "github.com/fennec-project/podtracer/cmd/internal/podtracer"
@@ -72,6 +74,12 @@ type runCommand struct {
 	// file path to store os/exec cmd.stderr output
 	stderrFile string
 
+	// Destination IP to send captured packets to
+	destinationIP string
+
+	// Destination port to send captured packets to
+	destinationPort string
+
 	// TODO: Linux namespace set to switch to before running
 	// selected tools with podtracer.
 	// Needs to be its own type limited to only valid namespaces.
@@ -100,6 +108,10 @@ func init() {
 	runCmd.Flags().StringVarP(&flags.stdoutFile, "stdoutFile", "o", "", "file path to save output data from the running tool.")
 
 	runCmd.Flags().StringVarP(&flags.stderrFile, "stderrFile", "e", "", "file path to save output data from the running tool.")
+
+	runCmd.Flags().StringVarP(&flags.destinationIP, "destination", "d", "", "Destination IP to where send stdout")
+
+	runCmd.Flags().StringVarP(&flags.destinationPort, "port", "p", "", "Destination port to where send stdout")
 
 	// Required Flags
 	runCmd.MarkFlagRequired("pod")
@@ -143,7 +155,7 @@ func Run(cliTool string) error {
 
 	stderrWriters := []io.Writer{}
 	stderrWriters = append(stderrWriters, os.Stdout)
-	if flags.stdoutFile != "" {
+	if flags.stderrFile != "" {
 
 		stderrFile, err := os.OpenFile(flags.stderrFile, os.O_RDWR|os.O_CREATE, 0755)
 		if err != nil {
@@ -156,13 +168,21 @@ func Run(cliTool string) error {
 	// it will trigger the runOSExec method calling the desired cli tool within
 	// the desired container context
 
-	splitArgs := strings.Split(flags.targetArgs, " ")
+	if net.ParseIP(flags.destinationIP) != nil {
+		cliCommand := cliTool + " " + flags.targetArgs + " | nc " + flags.destinationIP + " " + flags.destinationPort
+		cmd := exec.Command("bash", "-c", cliCommand)
+		cmd.Stdout = io.MultiWriter(stdoutWriters...)
+		cmd.Stderr = io.MultiWriter(stderrWriters...)
 
-	cmd := exec.Command(cliTool, splitArgs...)
-	cmd.Stdout = io.MultiWriter(stdoutWriters...)
-	cmd.Stderr = io.MultiWriter(stderrWriters...)
+		Podtracer.Execute(cmd, &containerContext)
+	} else {
+		splitArgs := strings.Split(flags.targetArgs, " ")
+		cmd := exec.Command(cliTool, splitArgs...)
+		cmd.Stdout = io.MultiWriter(stdoutWriters...)
+		cmd.Stderr = io.MultiWriter(stderrWriters...)
 
-	Podtracer.Execute(cmd, &containerContext)
+		Podtracer.Execute(cmd, &containerContext)
+	}
 
 	return nil
 }
