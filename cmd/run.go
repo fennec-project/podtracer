@@ -164,25 +164,34 @@ func Run(cliTool string) error {
 		stderrWriters = append(stdoutWriters, stderrFile)
 	}
 
+	if net.ParseIP(flags.destinationIP) != nil {
+
+		s := Podtracer.Streamer{}
+		s.Init(flags.destinationIP, flags.destinationPort)
+
+		stdoutWriters = append(stdoutWriters, s)
+	}
+
 	// The runner component has methods to run tasks. Under the run command here
 	// it will trigger the runOSExec method calling the desired cli tool within
 	// the desired container context
 
-	if net.ParseIP(flags.destinationIP) != nil {
-		cliCommand := cliTool + " " + flags.targetArgs + " | nc " + flags.destinationIP + " " + flags.destinationPort
-		cmd := exec.Command("bash", "-c", cliCommand)
-		cmd.Stdout = io.MultiWriter(stdoutWriters...)
-		cmd.Stderr = io.MultiWriter(stderrWriters...)
+	// if net.ParseIP(flags.destinationIP) != nil {
+	// 	cliCommand := cliTool + " " + flags.targetArgs + " | nc " + flags.destinationIP + " " + flags.destinationPort
+	// 	cmd := exec.Command("bash", "-c", cliCommand)
 
-		Podtracer.Execute(cmd, &containerContext)
-	} else {
-		splitArgs := strings.Split(flags.targetArgs, " ")
-		cmd := exec.Command(cliTool, splitArgs...)
-		cmd.Stdout = io.MultiWriter(stdoutWriters...)
-		cmd.Stderr = io.MultiWriter(stderrWriters...)
+	// 	cmd.Stdout = io.MultiWriter(stdoutWriters...)
+	// 	cmd.Stderr = io.MultiWriter(stderrWriters...)
 
-		Podtracer.Execute(cmd, &containerContext)
-	}
+	// 	Podtracer.Execute(cmd, &containerContext)
+	// } else {
+	splitArgs := strings.Split(flags.targetArgs, " ")
+	cmd := exec.Command(cliTool, splitArgs...)
+	cmd.Stdout = io.MultiWriter(stdoutWriters...)
+	cmd.Stderr = io.MultiWriter(stderrWriters...)
+
+	Podtracer.Execute(cmd, &containerContext)
+	// }
 
 	return nil
 }

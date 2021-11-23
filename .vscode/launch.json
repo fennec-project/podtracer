@@ -10,7 +10,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}",
-      "args": ["run","tcpdump", "-a", "-i eth0 -c 50", "--pod", "anyuid-netbind-6cdc595876-lpft2", "-n", "cap-test", "-o", "out.txt", "-e", "err.txt","-d", "10.131.1.253", "-p", "5555"],
+      "args": ["run","tcpdump", "-a", "-i eth0 -c 50", "--pod", "cnf-example-pod-98b9d4df8-m6wp8", "-n", "cnf-telco", "-o", "out.txt", "-e", "err.txt","-d", "10.128.2.19", "-p", "51001"],
       // "args": ["run"],
       "env": {"PODTRACER_LOGLEVEL":"INFO"}
     }
