@@ -18,11 +18,11 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"log"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
-
-	"net"
 
 	"github.com/spf13/cobra"
 
@@ -71,14 +71,14 @@ type runCommand struct {
 	// file path to store os/exec cmd.stdout output
 	stdoutFile string
 
-	// file path to store os/exec cmd.stderr output
-	stderrFile string
-
 	// Destination IP to send captured packets to
 	destinationIP string
 
 	// Destination port to send captured packets to
 	destinationPort string
+
+	// Writers send data to a desired destination
+	writers []io.Writer
 
 	// TODO: Linux namespace set to switch to before running
 	// selected tools with podtracer.
@@ -96,28 +96,41 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 
 	// Flags for run
-
 	runCmd.Flags().StringVarP(&flags.targetArgs, "arguments", "a", "", "arguments to running cli utility.")
-
 	runCmd.Flags().StringVar(&flags.targetPodName, "pod", "", "Target pod name.")
-
 	runCmd.Flags().StringVarP(&flags.targetNamespace, "namespace", "n", "", "Kubernetes namespace where the target pod is running")
-
 	runCmd.Flags().StringVarP(&flags.kubeconfigPath, "kubeconfig", "k", "", "kubeconfig file path to connect to kubernetes cluster - defaults to $HOME/.kube/kubeconfig")
-
 	runCmd.Flags().StringVarP(&flags.stdoutFile, "stdoutFile", "o", "", "file path to save output data from the running tool.")
-
-	runCmd.Flags().StringVarP(&flags.stderrFile, "stderrFile", "e", "", "file path to save output data from the running tool.")
-
 	runCmd.Flags().StringVarP(&flags.destinationIP, "destination", "d", "", "Destination IP to where send stdout")
-
 	runCmd.Flags().StringVarP(&flags.destinationPort, "port", "p", "", "Destination port to where send stdout")
 
 	// Required Flags
 	runCmd.MarkFlagRequired("pod")
-
 	runCmd.MarkFlagRequired("namespace")
 
+}
+
+func initWriters() error {
+
+	flags.writers = append(flags.writers, os.Stdout)
+	if flags.stdoutFile != "" {
+
+		stdoutFile, err := os.OpenFile(flags.stdoutFile, os.O_RDWR|os.O_CREATE, 0755)
+		if err != nil {
+			return err
+		}
+		flags.writers = append(flags.writers, stdoutFile)
+	}
+
+	if net.ParseIP(flags.destinationIP) != nil {
+
+		s := Podtracer.Streamer{}
+		s.Init(flags.destinationIP, flags.destinationPort)
+
+		flags.writers = append(flags.writers, s)
+	}
+
+	return nil
 }
 
 func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
@@ -142,56 +155,27 @@ func Run(cliTool string) error {
 		return err
 	}
 
-	stdoutWriters := []io.Writer{}
-	stdoutWriters = append(stdoutWriters, os.Stdout)
-	if flags.stdoutFile != "" {
+	r, w := io.Pipe()
 
-		stdoutFile, err := os.OpenFile(flags.stdoutFile, os.O_RDWR|os.O_CREATE, 0755)
-		if err != nil {
-			return err
-		}
-		stdoutWriters = append(stdoutWriters, stdoutFile)
+	go func() {
+		splitArgs := strings.Split(flags.targetArgs, " ")
+		cmd := exec.Command(cliTool, splitArgs...)
+		cmd.Stdout = w
+		cmd.Stderr = w
+		Podtracer.Execute(cmd, &containerContext)
+		w.Close()
+	}()
+
+	err = initWriters()
+	if err != nil {
+		return err
 	}
 
-	stderrWriters := []io.Writer{}
-	stderrWriters = append(stderrWriters, os.Stdout)
-	if flags.stderrFile != "" {
+	dstWriters := io.MultiWriter(flags.writers...)
 
-		stderrFile, err := os.OpenFile(flags.stderrFile, os.O_RDWR|os.O_CREATE, 0755)
-		if err != nil {
-			return err
-		}
-		stderrWriters = append(stdoutWriters, stderrFile)
+	if _, err := io.Copy(dstWriters, r); err != nil {
+		log.Fatal(err)
 	}
-
-	if net.ParseIP(flags.destinationIP) != nil {
-
-		s := Podtracer.Streamer{}
-		s.Init(flags.destinationIP, flags.destinationPort)
-
-		stdoutWriters = append(stdoutWriters, s)
-	}
-
-	// The runner component has methods to run tasks. Under the run command here
-	// it will trigger the runOSExec method calling the desired cli tool within
-	// the desired container context
-
-	// if net.ParseIP(flags.destinationIP) != nil {
-	// 	cliCommand := cliTool + " " + flags.targetArgs + " | nc " + flags.destinationIP + " " + flags.destinationPort
-	// 	cmd := exec.Command("bash", "-c", cliCommand)
-
-	// 	cmd.Stdout = io.MultiWriter(stdoutWriters...)
-	// 	cmd.Stderr = io.MultiWriter(stderrWriters...)
-
-	// 	Podtracer.Execute(cmd, &containerContext)
-	// } else {
-	splitArgs := strings.Split(flags.targetArgs, " ")
-	cmd := exec.Command(cliTool, splitArgs...)
-	cmd.Stdout = io.MultiWriter(stdoutWriters...)
-	cmd.Stderr = io.MultiWriter(stderrWriters...)
-
-	Podtracer.Execute(cmd, &containerContext)
-	// }
 
 	return nil
 }
