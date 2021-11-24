@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -80,6 +81,11 @@ type runCommand struct {
 	// Writers send data to a desired destination
 	writers []io.Writer
 
+	// Timer sets how long a command should run
+	// It's expressed by a decima number and the time unit
+	// Valid examples are 30s, 1h, 2h30m etc.
+	timer string
+
 	// TODO: Linux namespace set to switch to before running
 	// selected tools with podtracer.
 	// Needs to be its own type limited to only valid namespaces.
@@ -103,6 +109,7 @@ func init() {
 	runCmd.Flags().StringVarP(&flags.stdoutFile, "stdoutFile", "o", "", "file path to save output data from the running tool.")
 	runCmd.Flags().StringVarP(&flags.destinationIP, "destination", "d", "", "Destination IP to where send stdout")
 	runCmd.Flags().StringVarP(&flags.destinationPort, "port", "p", "", "Destination port to where send stdout")
+	runCmd.Flags().StringVarP(&flags.timer, "timer", "t", "", "It's expressed by a decima number and the time unit. Valid examples are 30s, 1h, 2h30m etc.")
 
 	// Required Flags
 	runCmd.MarkFlagRequired("pod")
@@ -147,35 +154,75 @@ func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
 
 func Run(cliTool string) error {
 
+	r, w := io.Pipe()
+	go cmdExec(cliTool, w)
+
+	done := make(chan bool)
+	go sendData(r, done)
+
+	if flags.timer != "" {
+		waitForTimer()
+	} else {
+		// Wait for a done signal.
+		<-done
+	}
+	return nil
+}
+
+func waitForTimer() {
+	// Setting up a timer with the desired duration for the command to run
+	d, err := time.ParseDuration(flags.timer)
+	if err != nil {
+		log.Fatal(err)
+	}
+	timer := time.NewTimer(d)
+
+	// Blocks and wait until timer channel receives a signal.
+	endTime := <-timer.C
+	fmt.Printf("\n\n Command finished at %s ", endTime)
+}
+
+func cmdExec(cliTool string, w io.WriteCloser) {
+
 	// Initializing podtracer will get all pod and container
 	// information from kubeapi-server and container engine.
 	containerContext := Podtracer.ContainerContext{}
 	err := containerContext.Init(flags.targetPodName, flags.targetNamespace, flags.kubeconfigPath)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
-	r, w := io.Pipe()
+	// Podtracer.Execute switches to the targetPod's Linux
+	// network namespace and executes a thread with a different
+	// view of the system. This is why it needs its own goroutine.
+	// All output from cmd is written through w that is connected
+	// to r in the goroutine that will write data out.
+	splitArgs := strings.Split(flags.targetArgs, " ")
+	cmd := exec.Command(cliTool, splitArgs...)
+	cmd.Stdout = w
+	cmd.Stderr = w
+	if err = Podtracer.Execute(cmd, &containerContext); err != nil {
+		log.Fatal(err)
+	}
+	w.Close()
+}
 
-	go func() {
-		splitArgs := strings.Split(flags.targetArgs, " ")
-		cmd := exec.Command(cliTool, splitArgs...)
-		cmd.Stdout = w
-		cmd.Stderr = w
-		Podtracer.Execute(cmd, &containerContext)
-		w.Close()
-	}()
+// This function collects data from the cmdExec and writes
+// it to as many io.Writers as desired/available. For the moment
+// we have only stdOut, file in container or gRPC streamer in
+// package internal/streamer.go
+func sendData(r io.Reader, done chan bool) {
 
-	err = initWriters()
+	err := initWriters()
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
 	dstWriters := io.MultiWriter(flags.writers...)
-
+	// This keeps running until r gets an EOF from w
 	if _, err := io.Copy(dstWriters, r); err != nil {
 		log.Fatal(err)
 	}
 
-	return nil
+	done <- true
 }
