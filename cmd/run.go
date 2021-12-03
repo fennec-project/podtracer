@@ -132,7 +132,7 @@ func initWriters() error {
 	if net.ParseIP(flags.destinationIP) != nil {
 
 		s := Podtracer.Streamer{}
-		s.Init(flags.destinationIP, flags.destinationPort)
+		s.Init(flags.destinationIP, flags.destinationPort, flags.targetPodName)
 
 		flags.writers = append(flags.writers, s)
 	}

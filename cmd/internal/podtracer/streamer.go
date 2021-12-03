@@ -11,10 +11,13 @@ import (
 )
 
 type Streamer struct {
-	client pb.DataEndpointClient
+	client  pb.DataEndpointClient
+	PodName string
 }
 
-func (s *Streamer) Init(ip string, port string) error {
+func (s *Streamer) Init(ip string, port string, podName string) error {
+
+	s.PodName = podName
 
 	// dial server
 	conn, err := grpc.Dial(ip+":"+port, grpc.WithInsecure())
@@ -43,7 +46,7 @@ func (s Streamer) Write(p []byte) (n int, err error) {
 	// first goroutine sends poddata to snoopy data endpoint
 	go func() {
 
-		pd := pb.PodData{Name: "podtest", Data: p}
+		pd := pb.PodData{Name: s.PodName, Data: p}
 		if err := stream.Send(&pd); err != nil {
 			log.Fatalf("can not send %v", err)
 		}
