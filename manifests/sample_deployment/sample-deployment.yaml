@@ -20,7 +20,7 @@ spec:
   selector:
     matchLabels:
       networkMonitor: "true"
-  replicas: 2
+  replicas: 10
   template:
     metadata:
       name: cnf-example-pod
@@ -31,13 +31,17 @@ spec:
       serviceAccountName: cnf-telco-sa
       containers:
       - command:
-        - /bin/bash 
-        - -c 
-        - --
+        - /bin/ping
         args:
-        - "while true; do sleep 30; done;"
+          - 8.8.8.8
         image: "nicolaka/netshoot:latest"
         imagePullPolicy: Always
         name: cnf-example
-      nodeSelector:
-        cnf-telco: "true"        
+      # - command:
+      #   - /bin/bash 
+      #   - -c 
+      #   - --
+      #   args:
+      #   - "while true; do sleep 30; done;"        
+      # nodeSelector:
+      #   cnf-telco: "true"        

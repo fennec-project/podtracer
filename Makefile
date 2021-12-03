@@ -5,7 +5,7 @@ NAMESPACE ?= podtracer
 # in order to develop podtracer
 DEV_NAMESPACE ?= podtracer-dev
 BUILDER ?= podman
-IMG ?= quay.io/fennec-project/podtracer:0.0.1-9
+IMG ?= quay.io/fennec-project/podtracer:0.0.1-10
 
 # podtracer-build builds podtracer binary
 podtracer-build:
