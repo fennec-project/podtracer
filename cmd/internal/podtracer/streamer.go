@@ -85,5 +85,5 @@ func (s Streamer) Write(p []byte) (n int, err error) {
 
 	<-done
 	log.Print("finished with pod data")
-	return 0, nil
+	return len(p), nil
 }
