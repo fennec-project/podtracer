@@ -1,3 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: podtracer
+  name: podtracer
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -25,7 +32,7 @@ spec:
         - --
         args:
         - "while true; do sleep 30; done;"
-        image: "quay.io/fennec-project/podtracer:0.0.1-8"
+        image: "quay.io/fennec-project/podtracer:0.0.1-11"
         imagePullPolicy: Always
         name: podtracer
         volumeMounts:
