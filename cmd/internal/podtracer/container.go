@@ -133,6 +133,7 @@ func (cctx *ContainerContext) getCRIOContainerInfo(containerID string) error {
 	if err != nil {
 		return err
 	}
+	defer grpcConn.Close()
 
 	// TODO: Optimize LOG DEBUG - missing a proper logger
 	Log("DEBUG", "Connected with CRI-O at unix:///var/run/crio/crio.sock")
@@ -147,8 +148,6 @@ func (cctx *ContainerContext) getCRIOContainerInfo(containerID string) error {
 	if err != nil {
 		return err
 	}
-
-	grpcConn.Close()
 
 	// parsing container info JSON
 	var parsedContainerInfo map[string]interface{}
