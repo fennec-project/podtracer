@@ -1,5 +1,11 @@
 # podtracer
 
+### Community Meetings
+
+Public calendar with regular meetings for 2022 will be available soon. We'll be back in January 14! Happy Holidays!
+
+---
+
 podtracer is a cli tool inspired in the Linux command line utility called nsenter. nsenter is capable of running programs in selected Linux namespaces taking as input the file paths for the namespaces or process ids from where it derives the namespaces.
 
 podtracer does the same but taking as input pod names and kubernetes namespaces in order to run Linux tools against the pods as targets. That enables tools such as tcpdump, iperf, tc, ip and others to be used against pods and containers directly without the itermediary process of finding their respective process IDs and subsequent namespace file paths.
@@ -54,9 +60,7 @@ In order to run podtracer itself:
 podtracer run < desired tool > -a < desired arguments > --pod < pod name > -n < k8s namespace name >
 ```
 Example:
+```
+potracer run tcpdump -a "-i eth0 -c 100 -w /pcap/test.pcap" --pod mypodname -n mynamespace
+```
 
-`potracer run tcpdump -a "-i eth0 -c 100 -w /pcap/test.pcap" --pod mypodname -n mynamespace`
-
-# Contribution
-
-Public meetings, slack channel and YouTube channel you be published soon alongside with contribution guidelines.
