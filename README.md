@@ -2,7 +2,7 @@
 
 ### Community Meetings
 
-Public calendar with regular meetings for 2022 will be available soon. We'll be back in January 14! Happy Holidays!
+Public calendar with regular meetings for 2022 will be available soon.
 
 ---
 
