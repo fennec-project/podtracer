@@ -40,8 +40,6 @@ spec:
           name: proc
         - mountPath: /var/run/crio/crio.sock
           name: crio-sock
-        - name: pcap-data
-          mountPath: /pcap-data/    
         securityContext:
           privileged: true
       nodeSelector:
@@ -57,5 +55,3 @@ spec:
           # Mounting the crio socket to inspect containers
           path: /var/run/crio/crio.sock
           type: Socket
-      - name: pcap-data
-        emptyDir: {}      
