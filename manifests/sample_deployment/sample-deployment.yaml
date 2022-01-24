@@ -20,7 +20,7 @@ spec:
   selector:
     matchLabels:
       networkMonitor: "true"
-  replicas: 5
+  replicas: 2
   template:
     metadata:
       name: cnf-example-pod
