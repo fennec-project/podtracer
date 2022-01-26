@@ -1,0 +1,4 @@
+{    
+"remote.SSH.defaultExtensions": [
+    "golang.go"
+]}
