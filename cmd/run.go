@@ -200,7 +200,7 @@ func cmdExec(cliTool string, w io.WriteCloser) {
 	splitArgs := strings.Split(flags.targetArgs, " ")
 	cmd := exec.Command(cliTool, splitArgs...)
 	cmd.Stdout = w
-	cmd.Stderr = w
+	cmd.Stderr = os.Stderr
 	if err = Podtracer.Execute(cmd, &containerContext); err != nil {
 		log.Fatal(err)
 	}

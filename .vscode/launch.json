@@ -10,7 +10,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}",
-      "args": ["run","tcpdump", "-a", "-i eth0", "--pod", "cnf-example-pod-6796b4cb8f-nfhk8", "-n", "cnf-telco", "-t", "30s"],
+      "args": ["run","tcpdump", "-a", "-i eth0", "--pod", "cnf-example-pod-6796b4cb8f-5xwx8", "-n", "cnf-telco", "-t", "30s"],
       // "args": ["run"],
       "env": {"PODTRACER_LOGLEVEL":"INFO"}
     }
