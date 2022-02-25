@@ -15,12 +15,12 @@ type Streamer struct {
 	PodName string
 }
 
-func (s *Streamer) Init(ip string, port string, podName string) error {
+func (s *Streamer) Init(destination string, port string, podName string) error {
 
 	s.PodName = podName
 
 	// dial server
-	conn, err := grpc.Dial(ip+":"+port, grpc.WithInsecure())
+	conn, err := grpc.Dial(destination+":"+port, grpc.WithInsecure())
 	if err != nil {
 		log.Print(err.Error())
 		return err

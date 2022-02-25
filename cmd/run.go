@@ -16,12 +16,14 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -62,20 +64,14 @@ type runCommand struct {
 	// namespace of the pod under troubleshooting
 	targetNamespace string
 
-	// path for kubeconfig file
-	// TODO: still needs investigation if it is really needed
-	// The service account running podtracer Pod should be enough to list
-	// pods and namespaces. But under dev env with VSCode it's seems to
-	// be required.
-	kubeconfigPath string
-
 	// file path to store os/exec cmd.stdout output
 	stdoutFile string
 
-	// Destination IP to send captured packets to
-	destinationIP string
+	// Destination host
+	// May be an IP address or valid url
+	destination string
 
-	// Destination port to send captured packets to
+	// Destination port
 	destinationPort string
 
 	// Writers send data to a desired destination
@@ -106,7 +102,7 @@ func init() {
 	runCmd.Flags().StringVar(&flags.targetPodName, "pod", "", "Target pod name.")
 	runCmd.Flags().StringVarP(&flags.targetNamespace, "namespace", "n", "", "Kubernetes namespace where the target pod is running")
 	runCmd.Flags().StringVarP(&flags.stdoutFile, "stdoutFile", "o", "", "file path to save output data from the running tool.")
-	runCmd.Flags().StringVarP(&flags.destinationIP, "destination", "d", "", "Destination IP to where send stdout")
+	runCmd.Flags().StringVarP(&flags.destination, "destination", "d", "", "Destination IP to where send stdout")
 	runCmd.Flags().StringVarP(&flags.destinationPort, "port", "p", "", "Destination port to where send stdout")
 	runCmd.Flags().StringVarP(&flags.timer, "timer", "t", "", "It's expressed by a decima number and the time unit. Valid examples are 30s, 1h, 2h30m etc.")
 
@@ -128,12 +124,18 @@ func initWriters() error {
 		flags.writers = append(flags.writers, stdoutFile)
 	}
 
-	if net.ParseIP(flags.destinationIP) != nil {
+	if net.ParseIP(flags.destination) != nil {
 
 		s := Podtracer.Streamer{}
-		s.Init(flags.destinationIP, flags.destinationPort, flags.targetPodName)
-
+		s.Init(flags.destination, flags.destinationPort, flags.targetPodName)
 		flags.writers = append(flags.writers, s)
+
+	} else if IsValidDomain(flags.destination) && LookupTest(flags.destination) == nil {
+
+		s := Podtracer.Streamer{}
+		s.Init(flags.destination, flags.destinationPort, flags.targetPodName)
+		flags.writers = append(flags.writers, s)
+
 	}
 
 	return nil
@@ -224,4 +226,24 @@ func sendData(r io.Reader, done chan bool) {
 	}
 
 	done <- true
+}
+
+func IsValidDomain(domain string) bool {
+	var domainRegex = regexp.MustCompile(`(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]`)
+	return domainRegex.MatchString(domain)
+}
+
+// Check for a valid domain name or url
+func LookupTest(domain string) error {
+
+	var ErrAddressNotFound = errors.New("address not found or unreachable")
+
+	addr, err := net.LookupHost(domain)
+	if err != nil {
+		return err
+	}
+	if len(addr) == 0 {
+		return ErrAddressNotFound
+	}
+	return nil
 }
