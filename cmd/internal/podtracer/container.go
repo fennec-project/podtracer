@@ -39,10 +39,10 @@ type ContainerContext struct {
 	// task string
 }
 
-func (cctx *ContainerContext) Init(podName string, Namespace string, kubeconfigPath string) error {
+func (cctx *ContainerContext) Init(podName string, Namespace string) error {
 
 	// Create client
-	err := cctx.getClient(kubeconfigPath)
+	err := cctx.getClient()
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func (cctx *ContainerContext) GetContainerPID() string {
 
 }
 
-func (cctx *ContainerContext) getClient(kubeconfigPath string) error {
+func (cctx *ContainerContext) getClient() error {
 
 	// TODO: link kubeconfigPath on client.new if empty default to ~/.kube/kubeconfig
 	client, err := client.New(config.GetConfigOrDie(), client.Options{})

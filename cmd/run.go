@@ -105,7 +105,6 @@ func init() {
 	runCmd.Flags().StringVarP(&flags.targetArgs, "arguments", "a", "", "arguments to running cli utility.")
 	runCmd.Flags().StringVar(&flags.targetPodName, "pod", "", "Target pod name.")
 	runCmd.Flags().StringVarP(&flags.targetNamespace, "namespace", "n", "", "Kubernetes namespace where the target pod is running")
-	runCmd.Flags().StringVarP(&flags.kubeconfigPath, "kubeconfig", "k", "", "kubeconfig file path to connect to kubernetes cluster - defaults to $HOME/.kube/kubeconfig")
 	runCmd.Flags().StringVarP(&flags.stdoutFile, "stdoutFile", "o", "", "file path to save output data from the running tool.")
 	runCmd.Flags().StringVarP(&flags.destinationIP, "destination", "d", "", "Destination IP to where send stdout")
 	runCmd.Flags().StringVarP(&flags.destinationPort, "port", "p", "", "Destination port to where send stdout")
@@ -187,7 +186,7 @@ func cmdExec(cliTool string, w io.WriteCloser) {
 	// Initializing podtracer will get all pod and container
 	// information from kubeapi-server and container engine.
 	containerContext := Podtracer.ContainerContext{}
-	err := containerContext.Init(flags.targetPodName, flags.targetNamespace, flags.kubeconfigPath)
+	err := containerContext.Init(flags.targetPodName, flags.targetNamespace)
 	if err != nil {
 		log.Fatal(err)
 	}
