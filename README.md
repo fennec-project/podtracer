@@ -1,11 +1,5 @@
 # podtracer
 
-### Community Meetings
-
-Public calendar with regular meetings for 2022 will be available soon.
-
----
-
 podtracer is a cli tool inspired in the Linux command line utility called nsenter. nsenter is capable of running programs in selected Linux namespaces taking as input the file paths for the namespaces or process ids from where it derives the namespaces.
 
 podtracer does the same but taking as input pod names and kubernetes namespaces in order to run Linux tools against the pods as targets. That enables tools such as tcpdump, iperf, tc, ip and others to be used against pods and containers directly without the itermediary process of finding their respective process IDs and subsequent namespace file paths.
@@ -23,25 +17,6 @@ For OpenShift additional RBAC yaml files are necessary to allow the privileged c
 Remember that at this point podtracer only supports CRIO. Other container engines are on our road map.
 
 Important to note as well that when troubleshooting with podtracer it needs to run on the same worker node as the pod being analyzed.
-
-# Build and Install
-
-There is no tagged release for podtracer at this point in the development but it can be built with go 1.15 or later like below. It's important to notice that at this point it doesn't support other operating systems other than Linux. It's under our plan to have a stand alone release for MacOS users reaching out to remote k8s clusters.
-
-- Clone the project:
-```
-git clone https://github.com/fennec-project/podtracer
-```
-
-- Build the binary:
-```
-go build -o build/podtracer
-```
-
-- The binary can be moved to any place in your $PATH
-```
-mv build/podtracer /usr/bin/
-```
 
 # Usage
 
@@ -63,4 +38,53 @@ Example:
 ```
 potracer run tcpdump -a "-i eth0 -c 100 -w /pcap/test.pcap" --pod mypodname -n mynamespace
 ```
+
+## How to contribute
+
+### Community Meetings
+
+Our meetings happen every Wednesday at 1pm Eastern Time.
+
+Snoopy Community Meeting<br>
+Wednesday at 1:00 – 2:00pm EST<br>
+Google Meet joining info:<br>
+[Click here to join the meeting](https://meet.google.com/mvw-ykhv-rin)<br>
+
+[Click here to check the meeting notes](https://docs.google.com/document/d/1RFFSaScSw-hSxEBOLEOT3CPM2S1EVmvQQ8rJ_TxEkJw/edit#)
+
+
+### Development
+
+Requirements: 
+
+- Go1.15+
+- Any Linux distribution
+- Docker or Podman for image building
+
+Building from source:
+
+The binary is written to ./build folder with:
+```
+make podtracer-build
+```
+Set the container image BUILDER and IMG variables in the Makefile available at root of the project to your desired values.
+
+Then build and push the container image with:
+```
+make container-build
+make container-push
+```
+
+Update the image and tag on manifests/deploy/deployment.yaml like below:
+```
+        image: "quay.io/fennec-project/podtracer:0.1.0"
+```
+
+That is enough to have a container deployment with podtracer for troubleshooting and testing.
+
+
+
+
+
+
 

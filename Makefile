@@ -5,7 +5,7 @@ NAMESPACE ?= podtracer
 # in order to develop podtracer
 DEV_NAMESPACE ?= podtracer-dev
 BUILDER ?= podman
-IMG ?= quay.io/fennec-project/podtracer:0.0.1-14
+IMG ?= quay.io/fennec-project/podtracer:0.1.0
 
 # podtracer-build builds podtracer binary
 podtracer-build:
@@ -18,6 +18,11 @@ container-build:
 # container-push pushes to quay image path indicated by ${IMG}
 container-push:
 	${BUILDER} push ${IMG}
+
+container-latest:
+	go build -o build/podtracer main.go
+	${BUILDER} build -t quay.io/fennec-project/podtracer:latest build/
+	${BUILDER} push quay.io/fennec-project/podtracer:latest
 
 # deploy-podtracer deploys a container with podtracer image
 # It allows engineers to run podtracer from a troubleshooting container 
