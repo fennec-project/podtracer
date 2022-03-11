@@ -32,7 +32,7 @@ spec:
         - --
         args:
         - "while true; do sleep 30; done;"
-        image: "quay.io/fennec-project/podtracer:0.0.1-11"
+        image: "quay.io/fennec-project/podtracer:0.1.0"
         imagePullPolicy: Always
         name: podtracer
         volumeMounts:
