@@ -7,20 +7,36 @@ DEV_NAMESPACE ?= podtracer-dev
 BUILDER ?= podman
 IMG ?= quay.io/fennec-project/podtracer:0.1.0
 
-# podtracer-build builds podtracer binary
-podtracer-build:
-	go build -o build/podtracer main.go
+GOOS=linux
+GOARCH=amd64
+
+PODTRACER_VERSION := "v0.1.0-alpha"
+GO_VERSION := $(shell go version | cut -f 3 -d " ")
+BUILD_TIME := $(shell date)
+GIT_USER := $(shell git log | grep -A2 $$(git rev-list -1 HEAD) | grep Author)
+GIT_COMMIT := $(shell git rev-list -1 HEAD)
+
+# build builds podtracer binary
+.PHONY: build
+build:
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags "-X 'github.com/fennec-project/podtracer/cmd.Version=$(PODTRACER_VERSION)' \
+													-X 'github.com/fennec-project/podtracer/cmd.GoVersion=$(GO_VERSION)' \
+													-X 'github.com/fennec-project/podtracer/cmd.BuildTime=$(BUILD_TIME)' \
+													-X 'github.com/fennec-project/podtracer/cmd.GitUser=$(GIT_USER)' \
+													-X 'github.com/fennec-project/podtracer/cmd.GitCommit=$(GIT_COMMIT)'" \
+													-o build/bin/podtracer main.go
 
 # Container Build builds podtracer container image
+.PHONY: container-build
 container-build:
 	${BUILDER} build -t ${IMG} build/
 
 # container-push pushes to quay image path indicated by ${IMG}
+.PHONY: container-push
 container-push:
 	${BUILDER} push ${IMG}
 
-container-latest:
-	go build -o build/podtracer main.go
+container-latest: build
 	${BUILDER} build -t quay.io/fennec-project/podtracer:latest build/
 	${BUILDER} push quay.io/fennec-project/podtracer:latest
 
