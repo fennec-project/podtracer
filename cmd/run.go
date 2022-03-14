@@ -38,9 +38,6 @@ var runCmd = &cobra.Command{
 	Long: `podtracer run - runs arbitrary Linux command line tools such as tcpdump, 
 		tshark, iperf and others to acquire network data and metrics for observability purposes 
 		 without changing the pod.`,
-
-	// ValidArgs: []string{"tcpdump"},
-	Args: argFuncs(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := Run(args[0])
@@ -139,18 +136,6 @@ func initWriters() error {
 	}
 
 	return nil
-}
-
-func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
-	return func(cmd *cobra.Command, args []string) error {
-		for _, f := range funcs {
-			err := f(cmd, args)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
 }
 
 func Run(cliTool string) error {
