@@ -38,7 +38,7 @@ var runCmd = &cobra.Command{
 	Long: `podtracer run - runs arbitrary Linux command line tools such as tcpdump, 
 		tshark, iperf and others to acquire network data and metrics for observability purposes 
 		 without changing the pod.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 
 		r, w := io.Pipe()
 		go cmdExec(args[0], w, cmd)
@@ -47,7 +47,7 @@ var runCmd = &cobra.Command{
 
 		writers, err := buildWriters(cmd)
 		if err != nil {
-			log.Fatal("Couldn't build writers to record data.")
+			return err
 		}
 
 		go sendData(r, done, writers)
@@ -58,6 +58,7 @@ var runCmd = &cobra.Command{
 			// Wait for a done signal.
 			<-done
 		}
+		return nil
 	},
 }
 
