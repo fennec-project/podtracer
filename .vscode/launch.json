@@ -10,7 +10,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}",
-      "args": ["run","tcpdump", "-a", "-i eth0", "--pod", "cnf-example-pod-86f5765f86-d4gn2", "-n", "cnf-telco", "-d", "snoopy-data-svc.snoopy-operator.svc.cluster.local", "-p", "51001"],
+      "args": ["run","tcpdump", "-a", "-i eth0", "--pod", "cnf-example-pod-6796b4cb8f-z7jcp", "-n", "cnf-telco", "-d", "snoopy-data-svc.snoopy-operator.svc.cluster.local", "-p", "51001"],
       // "args": ["run"],
       "env": {"PODTRACER_LOGLEVEL":"INFO"}
     }

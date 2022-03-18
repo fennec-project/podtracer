@@ -38,157 +38,83 @@ var runCmd = &cobra.Command{
 	Long: `podtracer run - runs arbitrary Linux command line tools such as tcpdump, 
 		tshark, iperf and others to acquire network data and metrics for observability purposes 
 		 without changing the pod.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
 
-	// ValidArgs: []string{"tcpdump"},
-	Args: argFuncs(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
-	Run: func(cmd *cobra.Command, args []string) {
+		r, w := io.Pipe()
+		go cmdExec(args[0], w, cmd)
 
-		err := Run(args[0])
-		if err != nil {
-			fmt.Printf("An error ocurred while running pod tracer run: %v", err.Error())
+		done := make(chan bool)
 
-		}
-	},
-}
-
-// runCmd represents the run command
-
-type runCommand struct {
-
-	// arguments for the tool being run by podtracer
-	targetArgs string
-
-	// the of the pod under troubleshooting
-	targetPodName string
-
-	// namespace of the pod under troubleshooting
-	targetNamespace string
-
-	// file path to store os/exec cmd.stdout output
-	stdoutFile string
-
-	// Destination host
-	// May be an IP address or valid url
-	destination string
-
-	// Destination port
-	destinationPort string
-
-	// Writers send data to a desired destination
-	writers []io.Writer
-
-	// Timer sets how long a command should run
-	// It's expressed by a decima number and the time unit
-	// Valid examples are 30s, 1h, 2h30m etc.
-	timer string
-
-	// TODO: Linux namespace set to switch to before running
-	// selected tools with podtracer.
-	// Needs to be its own type limited to only valid namespaces.
-	// linuxNSSet linuxNSSet
-
-	// TODO: enable running non-valid untested args as tools
-	// unsafe bool // --unsafe
-}
-
-var flags runCommand
-
-func init() {
-
-	rootCmd.AddCommand(runCmd)
-
-	// Flags for run
-	runCmd.Flags().StringVarP(&flags.targetArgs, "arguments", "a", "", "arguments to running cli utility.")
-	runCmd.Flags().StringVar(&flags.targetPodName, "pod", "", "Target pod name.")
-	runCmd.Flags().StringVarP(&flags.targetNamespace, "namespace", "n", "", "Kubernetes namespace where the target pod is running")
-	runCmd.Flags().StringVarP(&flags.stdoutFile, "stdoutFile", "o", "", "file path to save output data from the running tool.")
-	runCmd.Flags().StringVarP(&flags.destination, "destination", "d", "", "Destination IP to where send stdout")
-	runCmd.Flags().StringVarP(&flags.destinationPort, "port", "p", "", "Destination port to where send stdout")
-	runCmd.Flags().StringVarP(&flags.timer, "timer", "t", "", "It's expressed by a decima number and the time unit. Valid examples are 30s, 1h, 2h30m etc.")
-
-	// Required Flags
-	runCmd.MarkFlagRequired("pod")
-	runCmd.MarkFlagRequired("namespace")
-
-}
-
-func initWriters() error {
-
-	flags.writers = append(flags.writers, os.Stdout)
-	if flags.stdoutFile != "" {
-
-		stdoutFile, err := os.OpenFile(flags.stdoutFile, os.O_RDWR|os.O_CREATE, 0755)
+		writers, err := buildWriters(cmd)
 		if err != nil {
 			return err
 		}
-		flags.writers = append(flags.writers, stdoutFile)
-	}
 
-	if net.ParseIP(flags.destination) != nil {
+		go sendData(r, done, writers)
 
-		s := Podtracer.Streamer{}
-		s.Init(flags.destination, flags.destinationPort, flags.targetPodName)
-		flags.writers = append(flags.writers, s)
-
-	} else if IsValidDomain(flags.destination) && LookupTest(flags.destination) == nil {
-
-		s := Podtracer.Streamer{}
-		s.Init(flags.destination, flags.destinationPort, flags.targetPodName)
-		flags.writers = append(flags.writers, s)
-
-	}
-
-	return nil
-}
-
-func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
-	return func(cmd *cobra.Command, args []string) error {
-		for _, f := range funcs {
-			err := f(cmd, args)
-			if err != nil {
-				return err
-			}
+		if cmd.Flag("timer").Value.String() != "" {
+			waitForTimer(cmd.Flag("timer").Value.String())
+		} else {
+			// Wait for a done signal.
+			<-done
 		}
 		return nil
-	}
+	},
 }
 
-func Run(cliTool string) error {
+func buildWriters(cmd *cobra.Command) ([]io.Writer, error) {
 
-	r, w := io.Pipe()
-	go cmdExec(cliTool, w)
+	writers := []io.Writer{}
 
-	done := make(chan bool)
-	go sendData(r, done)
-
-	if flags.timer != "" {
-		waitForTimer()
-	} else {
-		// Wait for a done signal.
-		<-done
+	if cmd.Flag("stdout").Value.String() == "true" {
+		writers = append(writers, os.Stdout)
 	}
-	return nil
+
+	if cmd.Flag("file").Value.String() != "" {
+
+		file, err := os.OpenFile(cmd.Flag("file").Value.String(), os.O_RDWR|os.O_CREATE, 0755)
+
+		if err != nil {
+			return nil, err
+		}
+
+		writers = append(writers, file)
+	}
+
+	if net.ParseIP(cmd.Flag("destination").Value.String()) != nil || (IsValidDomain(cmd.Flag("destination").Value.String()) && LookupTest(cmd.Flag("destination").Value.String()) == nil) {
+
+		s := Podtracer.Streamer{}
+
+		s.Init(cmd.Flag("destination").Value.String(),
+			cmd.Flag("port").Value.String(),
+			cmd.Flag("pod").Value.String())
+
+		writers = append(writers, s)
+
+	}
+
+	return writers, nil
 }
 
-func waitForTimer() {
+func waitForTimer(timer string) {
 	// Setting up a timer with the desired duration for the command to run
-	d, err := time.ParseDuration(flags.timer)
+	d, err := time.ParseDuration(timer)
 	if err != nil {
 		log.Fatal(err)
 	}
-	timer := time.NewTimer(d)
+	t := time.NewTimer(d)
 
 	// Blocks and wait until timer channel receives a signal.
-	endTime := <-timer.C
+	endTime := <-t.C
 	fmt.Printf("\n\n Command finished at %s ", endTime)
 }
 
-func cmdExec(cliTool string, w io.WriteCloser) {
+func cmdExec(cliTool string, w io.WriteCloser, cmd *cobra.Command) {
 
 	// Initializing podtracer will get all pod and container
 	// information from kubeapi-server and container engine.
 	containerContext := Podtracer.ContainerContext{}
-	err := containerContext.Init(flags.targetPodName, flags.targetNamespace)
+	err := containerContext.Init(cmd.Flag("pod").Value.String(), cmd.Flag("namespace").Value.String())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -198,11 +124,11 @@ func cmdExec(cliTool string, w io.WriteCloser) {
 	// view of the system. This is why it needs its own goroutine.
 	// All output from cmd is written through w that is connected
 	// to r in the goroutine that will write data out.
-	splitArgs := strings.Split(flags.targetArgs, " ")
-	cmd := exec.Command(cliTool, splitArgs...)
-	cmd.Stdout = w
-	cmd.Stderr = os.Stderr
-	if err = Podtracer.Execute(cmd, &containerContext); err != nil {
+	splitArgs := strings.Split(cmd.Flag("arguments").Value.String(), " ")
+	targetCmd := exec.Command(cliTool, splitArgs...)
+	targetCmd.Stdout = w
+	targetCmd.Stderr = os.Stderr
+	if err = Podtracer.Execute(targetCmd, &containerContext); err != nil {
 		log.Fatal(err)
 	}
 	w.Close()
@@ -212,16 +138,11 @@ func cmdExec(cliTool string, w io.WriteCloser) {
 // it to as many io.Writers as desired/available. For the moment
 // we have only stdOut, file in container or gRPC streamer in
 // package internal/streamer.go
-func sendData(r io.Reader, done chan bool) {
+func sendData(r io.Reader, done chan bool, writers []io.Writer) {
 
-	err := initWriters()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	dstWriters := io.MultiWriter(flags.writers...)
+	multiWriter := io.MultiWriter(writers...)
 	// This keeps running until r gets an EOF from w
-	if _, err := io.Copy(dstWriters, r); err != nil {
+	if _, err := io.Copy(multiWriter, r); err != nil {
 		log.Fatal(err)
 	}
 
@@ -246,4 +167,24 @@ func LookupTest(domain string) error {
 		return ErrAddressNotFound
 	}
 	return nil
+}
+
+func init() {
+
+	// Flags for run
+	runCmd.Flags().StringP("arguments", "a", "", "arguments to running cli utility.")
+	runCmd.Flags().String("pod", "", "Target pod name.")
+	runCmd.Flags().StringP("namespace", "n", "", "Kubernetes namespace where the target pod is running")
+	runCmd.Flags().StringP("file", "f", "", "file path to save output data from the running tool.")
+	runCmd.Flags().StringP("destination", "d", "", "Destination IP to where send stdout")
+	runCmd.Flags().StringP("port", "p", "", "Destination port to where send stdout")
+	runCmd.Flags().StringP("timer", "t", "", "It's expressed by a decima number and the time unit. Valid examples are 30s, 1h, 2h30m etc.")
+	runCmd.Flags().BoolP("stdout", "s", false, "Use --stdout true for tool output on container's stdout.")
+
+	// Required Flags
+	runCmd.MarkFlagRequired("pod")
+	runCmd.MarkFlagRequired("namespace")
+
+	// Adding command to root
+	rootCmd.AddCommand(runCmd)
 }
