@@ -5,12 +5,12 @@ NAMESPACE ?= podtracer
 # in order to develop podtracer
 DEV_NAMESPACE ?= podtracer-dev
 BUILDER ?= podman
-IMG ?= quay.io/fennec-project/podtracer:0.1.0
+IMG ?= quay.io/fennec-project/podtracer:0.1.1-1
 
 GOOS=linux
 GOARCH=amd64
 
-PODTRACER_VERSION := "v0.1.0-alpha"
+PODTRACER_VERSION := "v0.1.1-1"
 GO_VERSION := $(shell go version | cut -f 3 -d " ")
 BUILD_TIME := $(shell date)
 GIT_USER := $(shell git log | grep -A2 $$(git rev-list -1 HEAD) | grep Author)
